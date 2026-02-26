@@ -3,6 +3,9 @@ import path from "path";
 
 // Server build configuration
 export default defineConfig({
+  ssr: {
+    noExternal: [],
+  },
   build: {
     lib: {
       entry: path.resolve(__dirname, "server/node-build.ts"),
@@ -12,33 +15,17 @@ export default defineConfig({
     },
     outDir: "dist/server",
     target: "node22",
-    ssr: true,
     rollupOptions: {
-      external: [
-        // Node.js built-ins
-        "fs",
-        "path",
-        "url",
-        "http",
-        "https",
-        "os",
-        "crypto",
-        "stream",
-        "util",
-        "events",
-        "buffer",
-        "querystring",
-        "child_process",
-        // External dependencies that should not be bundled
-        "express",
-        "cors",
-      ],
+      external: (id) => {
+        // Externalize all modules that are not relative or absolute internal paths
+        return !id.startsWith('.') && !id.startsWith('/') && !path.isAbsolute(id);
+      },
       output: {
         format: "es",
         entryFileNames: "[name].mjs",
       },
     },
-    minify: false, // Keep readable for debugging
+    minify: false,
     sourcemap: true,
   },
   resolve: {

@@ -1,9 +1,14 @@
-const express = require('express');
+import express from 'express';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
+import { createRequire } from 'module';
+import 'dotenv/config';
+
+const require = createRequire(import.meta.url);
 const router = express.Router();
-const Razorpay = require('razorpay');
-const crypto = require('crypto');
-const Order = require('../models/Order');
-require('dotenv').config();
+// Use require for models to avoid deep conversion if not needed, or use import
+// @ts-ignore
+import Order from '../models/Order.js';
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_5yLzXw7fN4LwXj',
@@ -11,7 +16,7 @@ const razorpay = new Razorpay({
 });
 
 // Create Razorpay Order
-router.post('/create-order', async (req, res) => {
+router.post('/create-order', async (req: any, res: any) => {
     try {
         const { amount, currency = 'INR', receipt } = req.body;
 
@@ -23,14 +28,14 @@ router.post('/create-order', async (req, res) => {
 
         const order = await razorpay.orders.create(options);
         res.json(order);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Razorpay order creation failed:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
 // Verify Payment Signature
-router.post('/verify', async (req, res) => {
+router.post('/verify', async (req: any, res: any) => {
     try {
         const {
             razorpay_order_id,
@@ -57,10 +62,10 @@ router.post('/verify', async (req, res) => {
         } else {
             res.status(400).json({ status: 'failure', message: 'Signature verification failed' });
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Razorpay verification failed:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-module.exports = router;
+export default router;
