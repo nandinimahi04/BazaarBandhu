@@ -13,7 +13,7 @@ export default defineConfig({
       fileName: "production",
       formats: ["es"],
     },
-    outDir: "dist/server",
+    outDir: "server-dist",
     target: "node22",
     rollupOptions: {
       external: (id) => {

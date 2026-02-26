@@ -89,13 +89,7 @@ app.use((err: any, req: any, res: any, next: any) => {
     });
 });
 
-// 404 handler
-app.use('*', (req: any, res: any) => {
-    res.status(404).json({
-        error: 'Route not found',
-        path: req.originalUrl
-    });
-});
+
 
 
 export default app;

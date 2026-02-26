@@ -1,7 +1,5 @@
 {
-    "framework": "vite",
-    "buildCommand": "npm install --include=dev && npm run build:client",
-    "outputDirectory": "dist/spa",
+    "outputDirectory": "dist",
     "rewrites": [
         {
             "source": "/api/(.*)",
