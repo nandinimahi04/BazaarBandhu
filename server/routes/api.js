@@ -4,11 +4,32 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 
-// Import models
 const User = require('../models/User');
 const Vendor = require('../models/Vendor');
 const Supplier = require('../models/Supplier');
 const Order = require('../models/Order');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Configure Multer Storage for Cloudinary
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'bazaarbandhu_documents',
+    allowed_formats: ['jpg', 'png', 'pdf', 'jpeg'],
+    public_id: (req, file) => `doc_${Date.now()}_${file.originalname.split('.')[0]}`
+  }
+});
+
+const upload = multer({ storage: storage });
 
 // Middleware for authentication
 const authenticateToken = (req, res, next) => {
@@ -31,6 +52,24 @@ const authenticateToken = (req, res, next) => {
 // ===============================
 // AUTHENTICATION ROUTES
 // ===============================
+
+// Upload shop verification document
+router.post('/upload/document', upload.single('document'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    res.json({
+      message: 'Document uploaded successfully',
+      url: req.file.path, // Cloudinary secure URL
+      originalName: req.file.originalname
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ error: 'Failed to upload document', details: error.message });
+  }
+});
 
 // Register new user (vendor or supplier)
 router.post('/auth/register', async (req, res) => {
@@ -357,6 +396,33 @@ router.get('/suppliers/:id', async (req, res) => {
   }
 });
 
+// Get supplier profile
+router.get('/suppliers/profile', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.userType !== 'supplier') {
+      return res.status(403).json({
+        error: 'Access denied. Suppliers only.'
+      });
+    }
+
+    const supplier = await Supplier.findById(req.user.userId)
+      .select('-password');
+
+    if (!supplier) {
+      return res.status(404).json({ error: 'Supplier not found' });
+    }
+
+    res.json(supplier);
+
+  } catch (error) {
+    console.error('Get supplier profile error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch profile',
+      details: error.message
+    });
+  }
+});
+
 // Update supplier profile
 router.put('/suppliers/profile', authenticateToken, async (req, res) => {
   try {
@@ -433,6 +499,39 @@ router.post('/suppliers/products', authenticateToken, async (req, res) => {
     console.error('Update products error:', error);
     res.status(500).json({
       error: 'Failed to update products',
+      details: error.message
+    });
+  }
+});
+
+// Get supplier analytics
+router.get('/suppliers/analytics', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.userType !== 'supplier') {
+      return res.status(403).json({
+        error: 'Access denied. Suppliers only.'
+      });
+    }
+
+    const { period = 'month' } = req.query;
+    const analytics = await Order.getSupplierAnalytics(req.user.userId, period);
+
+    res.json({
+      period,
+      analytics: analytics[0] || {
+        totalOrders: 0,
+        totalSales: 0,
+        totalItemsSold: 0,
+        averageOrderValue: 0,
+        pendingOrders: 0,
+        deliveredOrders: 0
+      }
+    });
+
+  } catch (error) {
+    console.error('Get supplier analytics error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch analytics',
       details: error.message
     });
   }
@@ -535,6 +634,79 @@ router.get('/vendors/analytics', authenticateToken, async (req, res) => {
       error: 'Failed to fetch analytics',
       details: error.message
     });
+  }
+});
+
+// Update or add inventory items
+router.patch('/vendors/inventory', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.userType !== 'vendor') {
+      return res.status(403).json({ error: 'Access denied. Vendors only.' });
+    }
+
+    const { product } = req.body; // { productName, category, quantity, unit, costPrice }
+    const vendor = await Vendor.findById(req.user.userId);
+
+    if (!vendor) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    const itemIndex = vendor.currentInventory.findIndex(
+      item => item.productName === product.productName
+    );
+
+    if (itemIndex >= 0) {
+      // Update existing
+      vendor.currentInventory[itemIndex] = {
+        ...vendor.currentInventory[itemIndex].toObject(),
+        ...product,
+        purchaseDate: new Date()
+      };
+    } else {
+      // Add new
+      vendor.currentInventory.push({
+        ...product,
+        purchaseDate: new Date()
+      });
+    }
+
+    await vendor.save();
+    res.json({
+      message: 'Inventory updated successfully',
+      inventory: vendor.currentInventory
+    });
+  } catch (error) {
+    console.error('Update inventory error:', error);
+    res.status(500).json({ error: 'Failed to update inventory', details: error.message });
+  }
+});
+
+// Remove inventory item
+router.delete('/vendors/inventory/:productName', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.userType !== 'vendor') {
+      return res.status(403).json({ error: 'Access denied. Vendors only.' });
+    }
+
+    const { productName } = req.params;
+    const vendor = await Vendor.findById(req.user.userId);
+
+    if (!vendor) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    vendor.currentInventory = vendor.currentInventory.filter(
+      item => item.productName !== productName
+    );
+
+    await vendor.save();
+    res.json({
+      message: 'Item removed successfully',
+      inventory: vendor.currentInventory
+    });
+  } catch (error) {
+    console.error('Delete inventory item error:', error);
+    res.status(500).json({ error: 'Failed to delete item', details: error.message });
   }
 });
 

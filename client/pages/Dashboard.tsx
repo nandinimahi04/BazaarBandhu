@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { User } from "@/server/models/User";
-import { Order } from "@/entities/Order";
-import { Inventory } from "@/entities/Inventory";
-import { Product } from "@/entities/Product";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  ShoppingCart, 
-  Package, 
-  TrendingUp, 
+import {
+  ShoppingCart,
+  Package,
+  TrendingUp,
   AlertTriangle,
   MessageCircle,
   Store,
@@ -16,22 +12,44 @@ import {
   Clock,
   Utensils,
   Users,
-  MapPin
+  MapPin,
+  Search,
+  Plus,
+  Minus,
+  Edit2,
+  Trash2,
+  CheckCircle2,
+  Shield,
+  Truck
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { api } from "@/lib/api";
 
 export default function Dashboard() {
-  const [currentUser, setCurrentUser] = useState(null);
   const [stats, setStats] = useState({
     totalOrders: 0,
     monthlySpent: 0,
     lowStockItems: 0,
     activeSuppliers: 0
   });
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [lowStockAlerts, setLowStockAlerts] = useState([]);
+  const [vendorData, setVendorData] = useState<any>(null);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [isAddInventoryOpen, setIsAddInventoryOpen] = useState(false);
+  const [newItem, setNewItem] = useState({ productName: "", quantity: 0, unit: "kg", category: "Vegetables", threshold: 5 });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -40,53 +58,101 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const user = await User.me();
-      setCurrentUser(user);
+      setIsLoading(true);
+      const data = await api.get("/vendors/profile");
+      setVendorData(data);
+      setInventoryItems(data.currentInventory || []);
 
-      // Load orders
-      const orders = await Order.filter({ vendor_id: user.id }, '-created_date', 50);
-      setRecentOrders(orders.slice(0, 5));
+      try {
+        const ordersData = await api.get("/orders");
+        setRecentOrders(ordersData.orders?.slice(0, 5) || []);
 
-      // Load inventory alerts
-      const inventory = await Inventory.filter({ vendor_id: user.id });
-      const alerts = inventory.filter(item => item.current_stock <= item.minimum_threshold);
-      setLowStockAlerts(alerts);
-
-      // Calculate stats
-      const thisMonth = new Date();
-      thisMonth.setDate(1);
-      const monthlyOrders = orders.filter(order => 
-        new Date(order.created_date) >= thisMonth && order.payment_status === 'paid'
-      );
-      
-      const monthlySpent = monthlyOrders.reduce((sum, order) => sum + order.total_amount, 0);
-      const suppliers = [...new Set(orders.map(order => order.supplier_id))];
-
-      setStats({
-        totalOrders: orders.length,
-        monthlySpent: monthlySpent,
-        lowStockItems: alerts.length,
-        activeSuppliers: suppliers.length
-      });
-
+        const statsData = await api.get("/vendors/analytics");
+        setStats({
+          totalOrders: statsData.analytics?.totalOrders || ordersData.pagination?.total || 0,
+          monthlySpent: statsData.analytics?.totalSpent || 0,
+          lowStockItems: (data.currentInventory || []).filter((item: any) => item.quantity <= (item.threshold || 5)).length,
+          activeSuppliers: data.preferredSuppliers?.length || 0
+        });
+      } catch (innerError) {
+        console.warn("Could not load stats/orders:", innerError);
+      }
     } catch (error) {
       console.error("Error loading dashboard data:", error);
+      toast.error("डैशबोर्ड डेटा लोड करने में विफल");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
+  };
+
+  const handleAddItem = async () => {
+    if (!newItem.productName) {
+      toast.error("कृपया उत्पाद का नाम दर्ज करें");
+      return;
+    }
+    try {
+      const data = await api.patch("/vendors/inventory", { product: newItem });
+      setInventoryItems(data.inventory);
+      setIsAddInventoryOpen(false);
+      setNewItem({ productName: "", quantity: 0, unit: "kg", category: "Vegetables", threshold: 5 });
+      toast.success(`${newItem.productName} जोड़ा गया`);
+
+      // Update low stock count in stats
+      setStats(prev => ({
+        ...prev,
+        lowStockItems: data.inventory.filter((item: any) => item.quantity <= (item.threshold || 5)).length
+      }));
+    } catch (error: any) {
+      toast.error(error.message || "आइटम जोड़ने में विफल");
+    }
+  };
+
+  const updateStock = async (productName: string, delta: number) => {
+    const item = inventoryItems.find(i => i.productName === productName);
+    if (!item) return;
+
+    try {
+      const newQty = Math.max(0, item.quantity + delta);
+      const data = await api.patch("/vendors/inventory", {
+        product: { ...item, quantity: newQty }
+      });
+      setInventoryItems(data.inventory);
+
+      // Update low stock count in stats
+      setStats(prev => ({
+        ...prev,
+        lowStockItems: data.inventory.filter((item: any) => item.quantity <= (item.threshold || 5)).length
+      }));
+    } catch (error: any) {
+      toast.error("स्टॉक अपडेट करने में विफल");
+    }
+  };
+
+  const deleteItem = async (productName: string) => {
+    try {
+      const data = await api.delete(`/vendors/inventory/${productName}`);
+      setInventoryItems(data.inventory);
+      toast.success("आइटम हटा दिया गया");
+
+      setStats(prev => ({
+        ...prev,
+        lowStockItems: data.inventory.filter((item: any) => item.quantity <= (item.threshold || 5)).length
+      }));
+    } catch (error: any) {
+      toast.error("हटाने में विफल");
+    }
   };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    const lang = currentUser?.preferred_language || 'hindi';
-    
-    const greetings = {
-      hindi: hour < 12 ? 'सुप्रभात' : hour < 17 ? 'नमस्ते' : 'शुभ संध्या',
-      english: hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening',
-      gujarati: hour < 12 ? 'સુપ્રભાત' : hour < 17 ? 'નમસ્તે' : 'શુભ સાંજ',
-      tamil: hour < 12 ? 'காலை வணக்கம்' : hour < 17 ? 'வணக்கம்' : 'மாலை வணக்கம்'
+    const lang = vendorData?.aiAssistant?.preferredLanguage || 'hi';
+
+    const greetings: Record<string, any> = {
+      hi: hour < 12 ? 'सुप्रभात' : hour < 17 ? 'नमस्ते' : 'शुभ संध्या',
+      en: hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening',
     };
 
-    return greetings[lang] || greetings.hindi;
+    return greetings[lang] || greetings.hi;
   };
 
   if (isLoading) {
@@ -105,6 +171,9 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  const lowStockAlerts = inventoryItems.filter(item => item.quantity <= (item.threshold || 5));
+  const isEnglish = vendorData?.aiAssistant?.preferredLanguage === 'en';
 
   return (
     <div className="p-6 space-y-6">
@@ -147,10 +216,10 @@ export default function Dashboard() {
           </div>
           <div>
             <h1 className="text-4xl font-bold gradient-text">
-              {getGreeting()}, {currentUser?.full_name?.split(' ')[0]}! 🍛
+              {getGreeting()}, {vendorData?.fullName?.split(' ')[0]}! 🍛
             </h1>
             <p className="text-gray-600 text-lg">
-              {currentUser?.preferred_language === 'english' 
+              {isEnglish
                 ? "Here's what's happening with your street food business today"
                 : "आज आपके स्ट्रीट फूड बिजनेस में क्या हो रहा है"
               }
@@ -158,7 +227,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 mt-1">
               <MapPin className="w-4 h-4 text-gray-500" />
               <span className="text-sm text-gray-500">
-                {currentUser?.address?.city}, {currentUser?.address?.state}
+                {vendorData?.address?.city}, {vendorData?.address?.state}
               </span>
             </div>
           </div>
@@ -172,7 +241,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  {currentUser?.preferred_language === 'english' ? 'Total Orders' : 'कुल ऑर्डर'}
+                  {isEnglish ? 'Total Orders' : 'कुल ऑर्डर'}
                 </p>
                 <p className="text-3xl font-bold gradient-text">{stats.totalOrders}</p>
               </div>
@@ -188,7 +257,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  {currentUser?.preferred_language === 'english' ? 'Monthly Spent' : 'मासिक खर्च'}
+                  {isEnglish ? 'Monthly Spent' : 'मासिक खर्च'}
                 </p>
                 <p className="text-3xl font-bold gradient-text">₹{stats.monthlySpent.toLocaleString()}</p>
               </div>
@@ -204,7 +273,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  {currentUser?.preferred_language === 'english' ? 'Low Stock Items' : 'कम स्टॉक'}
+                  {isEnglish ? 'Low Stock Items' : 'कम स्टॉक'}
                 </p>
                 <p className="text-3xl font-bold text-orange-600">{stats.lowStockItems}</p>
               </div>
@@ -220,7 +289,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  {currentUser?.preferred_language === 'english' ? 'Active Suppliers' : 'सक्रिय सप्लायर'}
+                  {isEnglish ? 'Active Suppliers' : 'सक्रिय सप्लायर'}
                 </p>
                 <p className="text-3xl font-bold gradient-text">{stats.activeSuppliers}</p>
               </div>
@@ -234,38 +303,39 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Link to={createPageUrl('AIAssistant')}>
+        <Link to="/ai-assistant">
           <Button className="w-full h-24 clay-button flex flex-col items-center justify-center space-y-2">
             <MessageCircle className="w-8 h-8" />
             <span className="text-sm font-medium">
-              {currentUser?.preferred_language === 'english' ? 'AI Assistant' : 'AI सहायक'}
+              {isEnglish ? 'AI Assistant' : 'AI सहायक'}
             </span>
           </Button>
         </Link>
-        
-        <Link to={createPageUrl('Markets')}>
+
+        <Link to="/suppliers">
           <Button className="w-full h-24 clay-button flex flex-col items-center justify-center space-y-2">
             <Store className="w-8 h-8" />
             <span className="text-sm font-medium">
-              {currentUser?.preferred_language === 'english' ? 'Browse Markets' : 'मार्केट देखें'}
+              {isEnglish ? 'Browse Markets' : 'मार्केट देखें'}
             </span>
           </Button>
         </Link>
-        
-        <Link to={createPageUrl('Storage')}>
-          <Button className="w-full h-24 clay-button flex flex-col items-center justify-center space-y-2">
-            <Package className="w-8 h-8" />
-            <span className="text-sm font-medium">
-              {currentUser?.preferred_language === 'english' ? 'Check Storage' : 'स्टोरेज देखें'}
-            </span>
-          </Button>
-        </Link>
-        
-        <Link to={createPageUrl('Orders')}>
+
+        <Button
+          className="w-full h-24 clay-button flex flex-col items-center justify-center space-y-2 text-white"
+          onClick={() => setIsAddInventoryOpen(true)}
+        >
+          <Package className="w-8 h-8" />
+          <span className="text-sm font-medium">
+            {isEnglish ? 'Check Storage' : 'स्टोरेज देखें'}
+          </span>
+        </Button>
+
+        <Link to="/orders">
           <Button className="w-full h-24 clay-button flex flex-col items-center justify-center space-y-2">
             <Clock className="w-8 h-8" />
             <span className="text-sm font-medium">
-              {currentUser?.preferred_language === 'english' ? 'My Orders' : 'मेरे ऑर्डर'}
+              {isEnglish ? 'My Orders' : 'मेरे ऑर्डर'}
             </span>
           </Button>
         </Link>
@@ -278,27 +348,26 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle className="gradient-text flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" />
-              {currentUser?.preferred_language === 'english' ? 'Recent Orders' : 'हाल के ऑर्डर'}
+              {isEnglish ? 'Recent Orders' : 'हाल के ऑर्डर'}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {recentOrders.length > 0 ? (
               <div className="space-y-4">
                 {recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-4 bg-white/50 rounded-xl">
+                  <div key={order._id} className="flex items-center justify-between p-4 bg-white/50 rounded-xl">
                     <div className="flex-1">
-                      <p className="font-medium">Order #{order.id.slice(-6)}</p>
+                      <p className="font-medium">Order #{order._id.slice(-6)}</p>
                       <p className="text-sm text-gray-600">
-                        {format(new Date(order.created_date), 'MMM dd, yyyy')}
+                        {format(new Date(order.placedAt || order.createdAt), 'MMM dd, yyyy')}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-lg">₹{order.total_amount}</p>
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                        order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                        order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'
-                      }`}>
+                      <p className="font-bold text-lg">₹{order.totalAmount}</p>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                          order.status === 'dispatched' ? 'bg-blue-100 text-blue-800' :
+                            'bg-yellow-100 text-yellow-800'
+                        }`}>
                         {order.status}
                       </span>
                     </div>
@@ -308,7 +377,7 @@ export default function Dashboard() {
             ) : (
               <div className="text-center text-gray-500 py-8">
                 <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>{currentUser?.preferred_language === 'english' ? 'No orders yet. Start shopping!' : 'अभी तक कोई ऑर्डर नहीं। खरीदारी शुरू करें!'}</p>
+                <p>{isEnglish ? 'No orders yet. Start shopping!' : 'अभी तक कोई ऑर्डर नहीं। खरीदारी शुरू करें!'}</p>
               </div>
             )}
           </CardContent>
@@ -316,38 +385,144 @@ export default function Dashboard() {
 
         {/* Low Stock Alerts */}
         <Card className="clay-element">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="gradient-text flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-orange-500" />
-              {currentUser?.preferred_language === 'english' ? 'Low Stock Alerts' : 'स्टॉक अलर्ट'}
+              {isEnglish ? 'Low Stock Alerts' : 'स्टॉक अलर्ट'}
             </CardTitle>
+            <Badge variant="outline" className="text-orange-600 border-orange-200">
+              {lowStockAlerts.length} Issues
+            </Badge>
           </CardHeader>
           <CardContent>
             {lowStockAlerts.length > 0 ? (
               <div className="space-y-4">
-                {lowStockAlerts.slice(0, 5).map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-4 bg-orange-50 rounded-xl border border-orange-200">
+                {lowStockAlerts.slice(0, 5).map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-4 bg-orange-50 rounded-xl border border-orange-200 group hover:border-orange-400 transition-colors">
                     <div>
-                      <p className="font-medium">{item.product_name}</p>
+                      <p className="font-bold text-slate-900">{item.productName}</p>
                       <p className="text-sm text-gray-600">
-                        Current: {item.current_stock} {item.unit}
+                        Current: <span className="text-orange-600 font-bold">{item.quantity} {item.unit}</span>
                       </p>
+                      <p className="text-[10px] text-gray-400">Threshold: {item.threshold || 5} {item.unit}</p>
                     </div>
-                    <Button size="sm" className="clay-button">
-                      {currentUser?.preferred_language === 'english' ? 'Reorder' : 'री-ऑर्डर'}
-                    </Button>
+                    <div className="flex items-center space-x-2">
+                      <Button size="icon" variant="outline" className="h-8 w-8 rounded-full" onClick={() => updateStock(item.productName, 5)}>
+                        <Plus className="w-4 h-4 text-orange-600" />
+                      </Button>
+                      <Link to="/suppliers">
+                        <Button size="sm" className="clay-button h-8">
+                          {isEnglish ? 'Order' : 'ऑर्डर'}
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="text-center text-gray-500 py-8">
-                <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>{currentUser?.preferred_language === 'english' ? 'All items are well stocked!' : 'सभी चीजों का स्टॉक भरपूर है!'}</p>
+                <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-green-500 opacity-50" />
+                <p>{isEnglish ? 'All items are well stocked!' : 'सभी चीजों का स्टॉक भरपूर है!'}</p>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Inventory Management Section */}
+      <Card className="clay-element mt-6">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-2xl font-bold gradient-text">Inventory Tracker</CardTitle>
+            <p className="text-sm text-slate-500">Manage your shop's stock levels and usage.</p>
+          </div>
+          <Dialog open={isAddInventoryOpen} onOpenChange={setIsAddInventoryOpen}>
+            <DialogTrigger asChild>
+              <Button className="clay-button text-white">
+                <Plus className="w-5 h-5 mr-2" /> Add Item
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Stock Item</DialogTitle>
+                <DialogDescription>Add items you use daily in your business.</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Item Name (e.g. Onion, Oil)</label>
+                  <Input
+                    placeholder="Onion"
+                    value={newItem.productName}
+                    onChange={e => setNewItem({ ...newItem, productName: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Initial Qty</label>
+                    <Input
+                      type="number"
+                      value={newItem.quantity}
+                      onChange={e => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Unit</label>
+                    <Input
+                      value={newItem.unit}
+                      onChange={e => setNewItem({ ...newItem, unit: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">Minimum Threshold (Alert below this)</label>
+                  <Input
+                    type="number"
+                    value={newItem.threshold}
+                    onChange={e => setNewItem({ ...newItem, threshold: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsAddInventoryOpen(false)}>Cancel</Button>
+                <Button className="clay-button text-white" onClick={handleAddItem}>Save Inventory</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {inventoryItems.map((item, idx) => (
+              <div key={idx} className="p-4 bg-white/60 rounded-2xl border border-slate-100 flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-slate-900">{item.productName}</p>
+                  <p className={`text-xl font-black ${item.quantity <= (item.threshold || 5) ? 'text-red-500' : 'text-slate-900'}`}>
+                    {item.quantity} {item.unit}
+                  </p>
+                  <Badge variant="secondary" className="mt-1 text-[10px]">{item.category}</Badge>
+                </div>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center space-x-1">
+                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateStock(item.productName, -1)}>
+                      <Minus className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateStock(item.productName, 1)}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-[10px] text-red-400 hover:text-red-600"
+                    onClick={() => deleteItem(item.productName)}
+                  >
+                    Delete Item
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

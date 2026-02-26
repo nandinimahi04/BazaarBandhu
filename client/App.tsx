@@ -16,31 +16,78 @@ import Orders from "./pages/Orders";
 import Credit from "./pages/Credit";
 import NotFound from "./pages/NotFound";
 import AIAssistant from "./pages/AIAssistant";
+import Landing from "./pages/Landing";
+import SupplierDashboard from "./pages/SupplierDashboard";
+import Checkout from "./pages/Checkout";
+import Login from "./pages/Login";
+import Inventory from "./pages/Inventory";
+import SupplierOrders from "./pages/SupplierOrders";
+import { CartProvider } from "./context/CartContext";
+import { useEffect, useState } from "react";
 
 
 
 const queryClient = new QueryClient();
+
+const DashboardSwitcher = () => {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+    setLoading(false);
+  }, []);
+
+  if (loading) return null;
+  if (!user) return <Landing />;
+
+  if (user.userType === "supplier") {
+    return <SupplierDashboard />;
+  }
+
+  return <BazaarBandhu />;
+};
+
+const Home = () => {
+  const storedUser = localStorage.getItem("user");
+  if (storedUser) {
+    return <DashboardSwitcher />;
+  }
+  return <Landing />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<BazaarBandhu />} />
-          <Route path="/profile" element={<VendorProfile />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/suppliers" element={<Suppliers />} />
-          <Route path="/assistant" element={<AIAssistant />} />
-          <Route path="/chat" element={<Chat />} />
-<Route path="/deepseek-chat" element={<DeepSeekChat />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/credit" element={<Credit />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <CartProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/landing" element={<Landing />} />
+            <Route path="/dashboard" element={<DashboardSwitcher />} />
+            <Route path="/supplier-dashboard" element={<SupplierDashboard />} />
+            <Route path="/profile" element={<VendorProfile />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/suppliers" element={<Suppliers />} />
+            <Route path="/assistant" element={<AIAssistant />} />
+            <Route path="/chat" element={<Chat />} />
+            <Route path="/deepseek-chat" element={<DeepSeekChat />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/supplier-orders" element={<SupplierOrders />} />
+            <Route path="/credit" element={<Credit />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/login" element={<Login />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </CartProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

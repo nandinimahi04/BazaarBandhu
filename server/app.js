@@ -16,23 +16,30 @@ connectDB();
 app.use(helmet());
 app.use(morgan('dev'));
 
-// CORS configuration
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:3000',
   'http://localhost:8080',
-  'http://localhost:5173'
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5174'
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
+
+    // In development, be more permissive with localhost
+    const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+
+    if (isLocalhost || allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    } else {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }
-    return callback(null, true);
   },
   credentials: true
 }));

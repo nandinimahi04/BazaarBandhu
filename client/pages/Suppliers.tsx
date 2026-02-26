@@ -6,13 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Search, 
-  MapPin, 
-  Star, 
-  Phone, 
-  Clock, 
-  Package, 
+import {
+  Search,
+  MapPin,
+  Star,
+  Phone,
+  Clock,
+  Package,
   TrendingUp,
   Shield,
   Filter,
@@ -21,8 +21,20 @@ import {
   Truck,
   IndianRupee,
   Users,
-  CheckCircle
+  CheckCircle,
+  Plus,
+  ShoppingCart,
+  ChevronRight
 } from "lucide-react";
+import { useCart } from "@/context/CartContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +42,27 @@ export default function Suppliers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("rating");
+  const [selectedSupplierForProducts, setSelectedSupplierForProducts] = useState<any>(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+
+  const { addToCart, itemCount, totalAmount } = useCart();
+
+  // Mock products for each supplier
+  const supplierProducts: Record<number, any[]> = {
+    1: [
+      { id: "s1-p1", name: "प्याज (Onion)", price: 90, unit: "kg", category: "vegetables" },
+      { id: "s1-p2", name: "टमाटर (Tomato)", price: 85, unit: "kg", category: "vegetables" },
+      { id: "s1-p3", name: "आलू (Potato)", price: 60, unit: "kg", category: "vegetables" },
+    ],
+    2: [
+      { id: "s2-p1", name: "हल्दी पाउडर", price: 180, unit: "kg", category: "spices" },
+      { id: "s2-p2", name: "लाल मिर्च", price: 240, unit: "kg", category: "spices" },
+    ],
+    4: [
+      { id: "s4-p1", name: "सरसों तेल", price: 120, unit: "L", category: "oil" },
+      { id: "s4-p2", name: "सूरजमुखी तेल", price: 150, unit: "L", category: "oil" },
+    ]
+  };
 
   const categories = [
     { id: "all", name: "सभी", count: 24 },
@@ -128,7 +161,7 @@ export default function Suppliers() {
 
   const filteredSuppliers = suppliers.filter(supplier => {
     const matchesSearch = supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         supplier.speciality.some(item => item.includes(searchQuery));
+      supplier.speciality.some(item => item.includes(searchQuery));
     const matchesCategory = selectedCategory === "all" || supplier.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -176,7 +209,7 @@ export default function Suppliers() {
                 <p className="text-sm text-orange-700">विश्वसनीय सप्लायर्स</p>
               </div>
             </Link>
-            
+
             <div className="flex items-center space-x-4">
               <Badge variant="secondary" className="bg-green-100 text-green-800">
                 <MapPin className="h-3 w-3 mr-1" />
@@ -205,7 +238,7 @@ export default function Suppliers() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            
+
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="सॉर्ट करें" />
@@ -322,7 +355,15 @@ export default function Suppliers() {
                         <MessageCircle className="h-3 w-3 mr-1" />
                         संपर्क कर���ं
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => {
+                          setSelectedSupplierForProducts(supplier);
+                          setIsProductModalOpen(true);
+                        }}
+                      >
                         <Package className="h-3 w-3 mr-1" />
                         ऑर्डर करें
                       </Button>
@@ -428,6 +469,85 @@ export default function Suppliers() {
           </div>
         </div>
       </div>
+
+      {/* Floating Cart Button */}
+      {itemCount > 0 && (
+        <Link to="/checkout">
+          <div className="fixed bottom-6 right-6 z-50">
+            <Button className="h-16 px-6 rounded-full bg-orange-600 hover:bg-orange-700 shadow-2xl shadow-orange-500/40 flex items-center space-x-3 group relative overflow-hidden">
+              <div className="absolute inset-0 bg-white/10 group-hover:translate-x-full transition-transform duration-500" />
+              <div className="relative flex items-center space-x-3">
+                <div className="relative">
+                  <ShoppingCart className="w-6 h-6 text-white" />
+                  <Badge className="absolute -top-3 -right-3 h-6 w-6 rounded-full bg-white text-orange-600 flex items-center justify-center border-2 border-orange-600 font-bold p-0">
+                    {itemCount}
+                  </Badge>
+                </div>
+                <div className="text-left border-l border-white/20 pl-3">
+                  <p className="text-[10px] text-orange-100 uppercase font-bold tracking-wider">Your Cart</p>
+                  <p className="text-lg font-bold text-white leading-none">₹{totalAmount}</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-white/70 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Button>
+          </div>
+        </Link>
+      )}
+
+      {/* Product Selection Modal */}
+      <Dialog open={isProductModalOpen} onOpenChange={setIsProductModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{selectedSupplierForProducts?.name} - Catalog</DialogTitle>
+            <DialogDescription>
+              Select items to add to your group order.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            {(supplierProducts[selectedSupplierForProducts?.id] || [
+              { id: "misc-1", name: "Sample Item 1", price: 100, unit: "kg" },
+              { id: "misc-2", name: "Sample Item 2", price: 150, unit: "pack" }
+            ]).map((product) => (
+              <div key={product.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-orange-200 transition-colors">
+                <div>
+                  <p className="font-bold text-slate-900">{product.name}</p>
+                  <p className="text-sm text-slate-500">₹{product.price}/{product.unit}</p>
+                </div>
+                <Button
+                  size="sm"
+                  className="bg-orange-500 hover:bg-orange-600 shadow-sm"
+                  onClick={() => {
+                    addToCart({
+                      id: product.id,
+                      name: product.name,
+                      price: product.price,
+                      quantity: 1,
+                      unit: product.unit,
+                      supplierId: selectedSupplierForProducts.id.toString(),
+                      supplierName: selectedSupplierForProducts.name
+                    });
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add
+                </Button>
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="flex-col gap-2">
+            <Button variant="outline" onClick={() => setIsProductModalOpen(false)} className="w-full">
+              Continue Shopping
+            </Button>
+            {itemCount > 0 && (
+              <Link to="/checkout" className="w-full">
+                <Button className="w-full bg-orange-600 hover:bg-orange-700">
+                  Go to Checkout
+                </Button>
+              </Link>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

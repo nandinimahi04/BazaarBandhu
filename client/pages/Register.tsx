@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,25 +17,61 @@ import {
   ArrowRight,
   ArrowLeft,
   Mic,
-  Globe
+  Globe,
+  Truck,
+  ShieldCheck
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function Register() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const role = searchParams.get("role") || "vendor"; // default to vendor
+
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     phone: "",
-    stallName: "",
-    stallType: "",
+    businessName: "",
+    businessCategory: "",
     location: "",
     address: "",
-    language: "",
+    language: "hindi",
     dailyBudget: "",
-    primaryItems: []
+    primaryItems: [],
+    // Supplier specific
+    gstNumber: "",
+    deliveryRadius: "10",
+    minOrderAmount: "500"
   });
+
+  const [verificationDocumentUrl, setVerificationDocumentUrl] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const uploadData = new FormData();
+    uploadData.append("document", file);
+
+    try {
+      setIsUploading(true);
+      const response = await api.post("/upload/document", uploadData);
+      setVerificationDocumentUrl(response.url);
+      toast.success("Document uploaded successfully!");
+    } catch (error) {
+      console.error("Upload failed:", error);
+      toast.error("Failed to upload document. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const totalSteps = 4;
   const progress = (currentStep / totalSteps) * 100;
@@ -51,15 +87,20 @@ export default function Register() {
     "अन्य"
   ];
 
+  const categories = [
+    "Fruits & Vegetables",
+    "Grains & Pulses",
+    "Dairy & Eggs",
+    "Spices & Tea",
+    "Packaging Materials",
+    "Beverages"
+  ];
+
   const languages = [
-    "हिंदी",
-    "मराठी",
-    "तमिल",
-    "बंगाली",
-    "गुजराती",
-    "तेलुगु",
-    "कन्नड़",
-    "अंग्रेजी"
+    { label: "हिंदी", value: "hindi" },
+    { label: "मराठी", value: "marathi" },
+    { label: "अंग्रेजी", value: "english" },
+    { label: "गुजराती", value: "gujarati" }
   ];
 
   const commonItems = [
@@ -88,6 +129,49 @@ export default function Register() {
     setFormData({ ...formData, primaryItems: updatedItems });
   };
 
+  const handleSubmit = async () => {
+    try {
+      const payload = {
+        fullName: formData.name,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        userType: role,
+        businessName: formData.businessName,
+        businessCategory: formData.businessCategory,
+        addressDetails: {
+          street: formData.address || formData.location,
+          city: 'City',
+          state: 'State',
+          pincode: '000000'
+        },
+        // Role specific extras
+        ...(role === 'supplier' ? {
+          gstNumber: formData.gstNumber,
+          deliveryRadius: parseInt(formData.deliveryRadius),
+          minOrderAmount: parseInt(formData.minOrderAmount),
+          productCategories: [formData.businessCategory],
+          fssaiLicense: verificationDocumentUrl // Store document URL here
+        } : {
+          stallName: formData.businessName,
+          stallType: formData.businessCategory,
+          verificationDocument: verificationDocumentUrl // Custom field for vendors
+        })
+      };
+
+      const data = await api.post("/auth/register", payload);
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      toast.success('🎉 Registration Successful! Welcome to BazaarBandhu.');
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast.error(`❌ Error: ${error.message}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-100">
       {/* Header */}
@@ -99,13 +183,15 @@ export default function Register() {
                 <Store className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-orange-900">Saarthi+</h1>
-                <p className="text-sm text-orange-700">नए विक्रेता का स्वागत</p>
+                <h1 className="text-2xl font-bold text-orange-900 leading-tight">BazaarBandhu</h1>
+                <p className="text-xs text-orange-700 font-bold uppercase tracking-wider">
+                  {role === 'supplier' ? 'Supplier Registration' : 'Vendor Registration'}
+                </p>
               </div>
             </Link>
 
-            <Badge variant="outline" className="bg-orange-100 text-orange-800">
-              चरण {currentStep} / {totalSteps}
+            <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">
+              Step {currentStep} / {totalSteps}
             </Badge>
           </div>
         </div>
@@ -113,152 +199,174 @@ export default function Register() {
 
       <div className="container mx-auto px-4 py-8">
         {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex justify-between text-sm text-gray-600 mb-2">
-            <span>पंजीकरण प्रगति</span>
-            <span>{Math.round(progress)}% पूर्ण</span>
+        <div className="mb-8 max-w-2xl mx-auto">
+          <div className="flex justify-between text-sm font-bold text-orange-900 mb-2">
+            <span>{currentStep === 4 ? 'Almost Done!' : 'Your Progress'}</span>
+            <span>{Math.round(progress)}% Complete</span>
           </div>
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} className="h-3 bg-white/50 border border-orange-100" />
         </div>
 
         <div className="max-w-2xl mx-auto">
-          <Card>
+          <Card className="border-none shadow-xl shadow-orange-100/50 overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-400" />
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                {currentStep === 1 && <User className="h-5 w-5 text-orange-600" />}
-                {currentStep === 2 && <Store className="h-5 w-5 text-orange-600" />}
-                {currentStep === 3 && <MapPin className="h-5 w-5 text-orange-600" />}
-                {currentStep === 4 && <CheckCircle className="h-5 w-5 text-orange-600" />}
+              <CardTitle className="flex items-center space-x-3 text-2xl text-slate-900">
+                <div className="bg-orange-100 p-2 rounded-lg">
+                  {currentStep === 1 && <User className="h-6 w-6 text-orange-600" />}
+                  {currentStep === 2 && (role === 'supplier' ? <Truck className="h-6 w-6 text-orange-600" /> : <Store className="h-6 w-6 text-orange-600" />)}
+                  {currentStep === 3 && <MapPin className="h-6 w-6 text-orange-600" />}
+                  {currentStep === 4 && <ShieldCheck className="h-6 w-6 text-orange-600" />}
+                </div>
                 <span>
-                  {currentStep === 1 && "व्यक्तिगत जानकारी"}
-                  {currentStep === 2 && "दुकान की जानकारी"}
-                  {currentStep === 3 && "स्थान और भाषा"}
-                  {currentStep === 4 && "खरीदारी की प्राथमिकताएं"}
+                  {currentStep === 1 && "Personal Details"}
+                  {currentStep === 2 && (role === 'supplier' ? "Business Verification" : "Shop Information")}
+                  {currentStep === 3 && "Location & Accessibility"}
+                  {currentStep === 4 && "Final Review"}
                 </span>
               </CardTitle>
             </CardHeader>
 
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 pt-4">
               {/* Step 1: Personal Information */}
               {currentStep === 1 && (
                 <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="name">आपका नाम *</Label>
-                    <Input
-                      id="name"
-                      placeholder="जैसे: कमलेश भाई पटेल"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name *</Label>
+                      <Input
+                        id="name"
+                        placeholder="e.g. Rahul Sharma"
+                        className="h-12 rounded-xl"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Mobile Number *</Label>
+                      <div className="flex">
+                        <div className="bg-slate-100 px-3 py-2 rounded-l-xl border border-r-0 text-sm text-slate-600 flex items-center">
+                          +91
+                        </div>
+                        <Input
+                          id="phone"
+                          placeholder="9876543210"
+                          className="rounded-l-none h-12 rounded-r-xl"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="email">ईमेल पता *</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address *</Label>
                     <Input
                       id="email"
                       type="email"
-                      placeholder="name@example.com"
+                      placeholder="rahul@example.com"
+                      className="h-12 rounded-xl"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="password">पासवर्ड *</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Set Password *</Label>
                     <Input
                       id="password"
                       type="password"
-                      placeholder="••••••••"
+                      placeholder="Min. 8 characters"
+                      className="h-12 rounded-xl"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     />
                   </div>
-
-                  <div>
-                    <Label htmlFor="phone">मोबाइल नंबर *</Label>
-                    <div className="flex">
-                      <div className="bg-gray-100 px-3 py-2 rounded-l-md border border-r-0 text-sm text-gray-600">
-                        +91
-                      </div>
-                      <Input
-                        id="phone"
-                        placeholder="9876543210"
-                        className="rounded-l-none"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      />
-                    </div>
-                    <p className="text-xs text-gray-600 mt-1">OTP भेजा जाएगा</p>
-                  </div>
-
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Phone className="h-4 w-4 text-blue-600" />
-                      <p className="text-sm font-medium text-blue-900">व्हाट्सएप अपडेट</p>
-                    </div>
-                    <p className="text-xs text-blue-700">
-                      दैनिक रेट, ऑर्डर अपडेट और समूह की जानकारी के लिए व्हाट्सएप पर मैसेज आएंगे
-                    </p>
-                  </div>
                 </div>
               )}
 
-              {/* Step 2: Shop Information */}
+              {/* Step 2: Shop/Business Information */}
               {currentStep === 2 && (
                 <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="stallName">दुकान/स्टॉल का नाम *</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="businessName">{role === 'supplier' ? 'Company/Trade Name *' : 'Stall/Shop Name *'}</Label>
                     <Input
-                      id="stallName"
-                      placeholder="जैसे: कमलेश वडा पाव सेंटर"
-                      value={formData.stallName}
-                      onChange={(e) => setFormData({ ...formData, stallName: e.target.value })}
+                      id="businessName"
+                      placeholder={role === 'supplier' ? "e.g. Fresh Garden Veggies" : "e.g. Rahul Vada Pav Center"}
+                      className="h-12 rounded-xl"
+                      value={formData.businessName}
+                      onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="stallType">स्टॉल का प्रकार *</Label>
-                    <Select onValueChange={(value) => setFormData({ ...formData, stallType: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="अपना स्टॉल प्रकार चुनें" />
+                  <div className="space-y-2">
+                    <Label htmlFor="businessCategory">{role === 'supplier' ? 'Primary Supply Category *' : 'Business Type *'}</Label>
+                    <Select onValueChange={(value) => setFormData({ ...formData, businessCategory: value })}>
+                      <SelectTrigger className="h-12 rounded-xl">
+                        <SelectValue placeholder="Select Category" />
                       </SelectTrigger>
                       <SelectContent>
-                        {stallTypes.map((type) => (
+                        {(role === 'supplier' ? categories : stallTypes).map((type) => (
                           <SelectItem key={type} value={type}>{type}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <div>
-                    <Label htmlFor="dailyBudget">दैनिक खरीदारी का बजट</Label>
-                    <div className="flex">
-                      <div className="bg-gray-100 px-3 py-2 rounded-l-md border border-r-0 text-sm text-gray-600">
-                        ₹
-                      </div>
+                  {role === 'supplier' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="gstNumber">GST Number (Optional)</Label>
                       <Input
-                        id="dailyBudget"
-                        placeholder="500"
-                        className="rounded-l-none"
-                        value={formData.dailyBudget}
-                        onChange={(e) => setFormData({ ...formData, dailyBudget: e.target.value })}
+                        id="gstNumber"
+                        placeholder="22AAAAA0000A1Z5"
+                        className="h-12 rounded-xl"
+                        value={formData.gstNumber}
+                        onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value })}
                       />
                     </div>
-                    <p className="text-xs text-gray-600 mt-1">औसतन दैनिक सामान की खरीदारी</p>
-                  </div>
+                  )}
 
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Camera className="h-4 w-4 text-green-600" />
-                      <p className="text-sm font-medium text-green-900">FSSAI लाइसेंस (वैकल्पिक)</p>
+                  <div className="bg-orange-50 p-4 rounded-2xl border border-orange-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-3">
+                        <Camera className="h-5 w-5 text-orange-600" />
+                        <p className="text-sm font-bold text-orange-900">Certificate / Shop Photo</p>
+                      </div>
+                      {verificationDocumentUrl && (
+                        <Badge className="bg-green-100 text-green-700 border-green-200">
+                          <CheckCircle className="h-3 w-3 mr-1" /> Verified
+                        </Badge>
+                      )}
                     </div>
-                    <p className="text-xs text-green-700 mb-2">
-                      FSSAI लाइसेंस अपलोड करें बेहतर रेट और विश्वसनीयता के लिए
+                    <p className="text-xs text-orange-700 mb-3">
+                      Upload your shop license or FSSAI certificate to gain "Verified" status and attract more business.
                     </p>
-                    <Button variant="outline" size="sm" className="text-green-700 border-green-200">
-                      <Camera className="h-3 w-3 mr-1" />
-                      फोटो लें
-                    </Button>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        type="file"
+                        id="doc-upload"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        accept=".jpg,.jpeg,.png,.pdf"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "bg-white rounded-lg transition-all",
+                          verificationDocumentUrl ? "text-green-600 border-green-200" : "text-orange-700 border-orange-200"
+                        )}
+                        onClick={() => document.getElementById('doc-upload')?.click()}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? "Uploading..." : verificationDocumentUrl ? "Click to Change Document" : "Upload Document"}
+                      </Button>
+                      {verificationDocumentUrl && (
+                        <span className="text-[10px] text-slate-500 truncate max-w-[150px]">
+                          Document uploaded successfully
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -266,164 +374,135 @@ export default function Register() {
               {/* Step 3: Location and Language */}
               {currentStep === 3 && (
                 <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="location">स्टॉल का इलाका *</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Operating Area / Locality *</Label>
                     <Input
                       id="location"
-                      placeholder="जैसे: सोलापुर सेंट्रल मार्केट"
+                      placeholder="e.g. Dadar West Market"
+                      className="h-12 rounded-xl"
                       value={formData.location}
                       onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                     />
-                    <Button variant="outline" size="sm" className="mt-2">
-                      <MapPin className="h-3 w-3 mr-1" />
-                      GPS से लोकेशन लें
-                    </Button>
                   </div>
 
-                  <div>
-                    <Label htmlFor="address">पूरा पता</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Full Address for Logistics</Label>
                     <Textarea
                       id="address"
-                      placeholder="दुकान का पूरा पता लिखें"
+                      placeholder="Full shop/warehouse address"
+                      className="rounded-xl min-h-[100px]"
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="language">पसंदीदा भाषा *</Label>
-                    <Select onValueChange={(value) => setFormData({ ...formData, language: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="AI असिस्टेंट की भाषा चुनें" />
+                  <div className="space-y-2">
+                    <Label htmlFor="language">Preferred AI Interaction Language *</Label>
+                    <Select value={formData.language} onValueChange={(value) => setFormData({ ...formData, language: value })}>
+                      <SelectTrigger className="h-12 rounded-xl">
+                        <SelectValue placeholder="Choose Language" />
                       </SelectTrigger>
                       <SelectContent>
                         {languages.map((lang) => (
-                          <SelectItem key={lang} value={lang}>{lang}</SelectItem>
+                          <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <div className="bg-purple-50 p-4 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Mic className="h-4 w-4 text-purple-600" />
-                      <p className="text-sm font-medium text-purple-900">आवाज़ से ऑर्डर</p>
+                  <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <Mic className="h-5 w-5 text-blue-600" />
+                      <p className="text-sm font-bold text-blue-900">Voice Assistance Enabled</p>
                     </div>
-                    <p className="text-xs text-purple-700">
-                      आप बोलकर ऑर्डर दे सकेंगे: "Saarthi, आज प्याज 5 किलो चाहिए"
+                    <p className="text-xs text-blue-700 leading-relaxed">
+                      You can manage inventory & place orders using voice commands in {languages.find(l => l.value === formData.language)?.label}.
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Step 4: Shopping Preferences */}
+              {/* Step 4: Final Preferences */}
               {currentStep === 4 && (
-                <div className="space-y-4">
-                  <div>
-                    <Label>आपको कौन सा सामान सबसे ज्यादा चाहिए? (कई चुन सकते हैं)</Label>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      {commonItems.map((item) => (
-                        <Button
-                          key={item}
-                          variant={formData.primaryItems.includes(item) ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handleItemToggle(item)}
-                          className="justify-start"
-                        >
-                          {item}
-                        </Button>
-                      ))}
+                <div className="space-y-6">
+                  {role === 'vendor' ? (
+                    <div>
+                      <Label className="text-base font-bold text-slate-900">What do you buy most often?</Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3">
+                        {commonItems.map((item) => (
+                          <div
+                            key={item}
+                            onClick={() => handleItemToggle(item)}
+                            className={`p-3 rounded-xl border-2 cursor-pointer transition-all text-sm font-medium flex items-center justify-between ${formData.primaryItems.includes(item) ? 'bg-orange-600 border-orange-600 text-white shadow-md' : 'bg-white border-slate-100 text-slate-600 hover:border-orange-200'}`}
+                          >
+                            {item}
+                            {formData.primaryItems.includes(item) && <CheckCircle className="h-4 w-4" />}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="bg-yellow-50 p-4 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Globe className="h-4 w-4 text-yellow-600" />
-                      <p className="text-sm font-medium text-yellow-900">PM SVANidhi योजना</p>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Delivery Radius (km)</Label>
+                          <Input className="h-12 rounded-xl" type="number" value={formData.deliveryRadius} onChange={e => setFormData({ ...formData, deliveryRadius: e.target.value })} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Min. Order (₹)</Label>
+                          <Input className="h-12 rounded-xl" type="number" value={formData.minOrderAmount} onChange={e => setFormData({ ...formData, minOrderAmount: e.target.value })} />
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-yellow-700 mb-2">
-                      ₹50,000 तक का लोन 4% सालाना ब्याज दर पर
-                    </p>
-                    <Button variant="outline" size="sm" className="text-yellow-700 border-yellow-200">
-                      जानकारी देखें
-                    </Button>
-                  </div>
+                  )}
 
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-green-900 mb-2">आपके फायदे:</h4>
-                    <ul className="text-xs text-green-700 space-y-1">
-                      <li>• समूह में खरीदारी से 15-25% बचत</li>
-                      <li>• विश्वसनीय सप्लायर से डायरेक्ट खरीदारी</li>
-                      <li>• AI असिस्टेंट से 24/7 सहायता</li>
-                      <li>• उधार सुविधा (₹1000 तक)</li>
-                      <li>• GST बिल और रिकॉर्ड की सुविधा</li>
+                  <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
+                    <h4 className="font-bold text-green-900 mb-3 flex items-center">
+                      <Globe className="h-5 w-5 mr-2" />
+                      Your Marketplace Benefits:
+                    </h4>
+                    <ul className="text-sm text-green-800 space-y-2">
+                      <li className="flex items-start">
+                        <CheckCircle className="h-4 w-4 mr-2 mt-0.5 text-green-600" />
+                        <span>Access to verified business network</span>
+                      </li>
+                      <li className="flex items-start">
+                        <CheckCircle className="h-4 w-4 mr-2 mt-0.5 text-green-600" />
+                        <span>Automated GST billing and records</span>
+                      </li>
+                      <li className="flex items-start">
+                        <CheckCircle className="h-4 w-4 mr-2 mt-0.5 text-green-600" />
+                        <span>AI Assistant for 24/7 business management</span>
+                      </li>
                     </ul>
                   </div>
                 </div>
               )}
 
               {/* Navigation Buttons */}
-              <div className="flex justify-between pt-6">
+              <div className="flex justify-between pt-8">
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   onClick={handlePrev}
                   disabled={currentStep === 1}
+                  className="h-12 px-6 font-bold text-slate-500 rounded-xl"
                 >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  पिछला
+                  <ArrowLeft className="h-5 w-5 mr-2" />
+                  Previous
                 </Button>
 
                 {currentStep < totalSteps ? (
-                  <Button onClick={handleNext} className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600">
-                    अगला
-                    <ArrowRight className="h-4 w-4 ml-2" />
+                  <Button onClick={handleNext} className="h-12 px-8 bg-slate-900 hover:bg-black text-white font-bold rounded-xl shadow-lg transition-transform hover:scale-[1.02]">
+                    Continue
+                    <ArrowRight className="h-5 w-5 ml-2" />
                   </Button>
                 ) : (
                   <Button
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
-                    onClick={async () => {
-                      try {
-                        const payload = {
-                          fullName: formData.name,
-                          email: formData.email,
-                          password: formData.password,
-                          phone: formData.phone,
-                          userType: 'vendor', // This page seems specific to vendors
-                          stallName: formData.stallName,
-                          stallType: formData.stallType,
-                          addressDetails: {
-                            street: formData.address || formData.location,
-                            city: 'City',
-                            state: 'State',
-                            pincode: '000000'
-                          }
-                        };
-
-                        const response = await fetch('http://localhost:5004/api/auth/register', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(payload)
-                        });
-
-                        const data = await response.json();
-
-                        if (!response.ok) {
-                          throw new Error(data.error || 'Registration failed');
-                        }
-
-                        localStorage.setItem('token', data.token);
-                        localStorage.setItem('user', JSON.stringify(data.user));
-
-                        alert('🎉 पंजीकरण सफल! Saarthi+ में आपका स्वागत है।');
-                        window.location.href = '/';
-                      } catch (error) {
-                        console.error('Registration error:', error);
-                        alert(`❌ त्रुटी: ${error.message}`);
-                      }
-                    }}
+                    className="h-12 px-10 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white font-bold text-lg rounded-xl shadow-xl shadow-orange-200 transition-all hover:scale-[1.02]"
+                    onClick={handleSubmit}
                   >
-                    पंजीकरण पूरा करें
-                    <CheckCircle className="h-4 w-4 ml-2" />
+                    Complete Registration
+                    <CheckCircle className="h-5 w-5 ml-2" />
                   </Button>
                 )}
               </div>
