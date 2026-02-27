@@ -388,6 +388,40 @@ router.get('/suppliers/:id', async (req: any, res: any) => {
     }
 });
 
+// Get products for a specific supplier (public - for vendor market view)
+router.get('/suppliers/:id/products', async (req: any, res: any) => {
+    try {
+        const supplier = await Supplier.findById(req.params.id)
+            .select('fullName businessName products rating');
+
+        if (!supplier) {
+            return res.status(404).json({ error: 'Supplier not found' });
+        }
+
+        // Only return active products with stock > 0
+        const availableProducts = supplier.products.filter(
+            (p: any) => p.isActive !== false && (p.currentStock === undefined || p.currentStock > 0 || p.inventory > 0)
+        );
+
+        res.json({
+            supplier: {
+                _id: supplier._id,
+                fullName: supplier.fullName,
+                businessName: supplier.businessName,
+                rating: supplier.rating
+            },
+            products: availableProducts
+        });
+
+    } catch (error: any) {
+        console.error('Get supplier products error:', error);
+        res.status(500).json({
+            error: 'Failed to fetch supplier products',
+            details: error.message
+        });
+    }
+});
+
 // Get supplier profile
 router.get('/suppliers/profile', authenticateToken, async (req: any, res: any) => {
     try {
@@ -804,6 +838,55 @@ router.post('/orders', authenticateToken, async (req: any, res: any) => {
                 totalOrders: 1
             }
         });
+
+        // Reduce supplier product stock for each ordered item
+        const supplierDoc = await Supplier.findById(supplierId);
+        if (supplierDoc) {
+            let stockChanged = false;
+            processedItems.forEach((item: any) => {
+                const prodIdx = supplierDoc.products.findIndex(
+                    (p: any) => p.name === item.productName || String(p._id) === String(item.productId)
+                );
+                if (prodIdx >= 0) {
+                    const prod = supplierDoc.products[prodIdx];
+                    // Decrement whichever stock field is set
+                    if (prod.currentStock !== undefined) {
+                        prod.currentStock = Math.max(0, (prod.currentStock || 0) - item.quantity);
+                    }
+                    if (prod.inventory !== undefined) {
+                        prod.inventory = Math.max(0, (prod.inventory || 0) - item.quantity);
+                    }
+                    stockChanged = true;
+                }
+            });
+            if (stockChanged) await supplierDoc.save();
+        }
+
+        // Add ordered items to vendor's currentInventory
+        const vendorDoc = await Vendor.findById(req.user.userId);
+        if (vendorDoc) {
+            processedItems.forEach((item: any) => {
+                const existingIdx = vendorDoc.currentInventory.findIndex(
+                    (inv: any) => inv.productName === item.productName
+                );
+                if (existingIdx >= 0) {
+                    // Increase existing stock
+                    vendorDoc.currentInventory[existingIdx].quantity =
+                        (vendorDoc.currentInventory[existingIdx].quantity || 0) + item.quantity;
+                } else {
+                    // Add new item
+                    vendorDoc.currentInventory.push({
+                        productName: item.productName,
+                        category: item.category || 'General',
+                        quantity: item.quantity,
+                        unit: item.unit,
+                        costPrice: item.pricePerUnit,
+                        purchaseDate: new Date()
+                    });
+                }
+            });
+            await vendorDoc.save();
+        }
 
         // Add initial tracking step
         await order.addTrackingStep('pending', 'Order received', 'Order has been placed and is awaiting confirmation');

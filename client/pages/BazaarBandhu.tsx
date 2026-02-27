@@ -306,7 +306,7 @@ export default function BazaarBandhu() {
   // Enhanced products with real-time state
   const [products, setProducts] = useState([
     {
-      id: 'p1',
+      id: '67be11111111111111111111',
       name: "Onions (प्याज)",
       price: 35,
       marketPrice: 45,
@@ -319,7 +319,7 @@ export default function BazaarBandhu() {
       image: '🧅'
     },
     {
-      id: 'p2',
+      id: '67be11111111111111111112',
       name: "Potatoes (आलू)",
       price: 25,
       marketPrice: 30,
@@ -332,7 +332,7 @@ export default function BazaarBandhu() {
       image: '🥔'
     },
     {
-      id: 'p3',
+      id: '67be11111111111111111113',
       name: getTranslation('tamarindChutney', selectedLanguage),
       price: 85,
       marketPrice: 100,
@@ -345,7 +345,7 @@ export default function BazaarBandhu() {
       image: '🍯'
     },
     {
-      id: 'p4',
+      id: '67be11111111111111111114',
       name: getTranslation('sprouts', selectedLanguage),
       price: 60,
       marketPrice: 75,
@@ -358,7 +358,7 @@ export default function BazaarBandhu() {
       image: '🥗'
     },
     {
-      id: 'p5',
+      id: '67be11111111111111111115',
       name: "Fresh Tomatoes",
       price: 40,
       marketPrice: 50,
@@ -459,7 +459,7 @@ export default function BazaarBandhu() {
       trustScore: 92
     },
     {
-      id: 2,
+      id: "67be00000000000000000002",
       name: "Maharaj Wholesale",
       owner: "Sunil Maharaj",
       rating: 4.6,
@@ -476,7 +476,7 @@ export default function BazaarBandhu() {
       trustScore: 88
     },
     {
-      id: 3,
+      id: "67be00000000000000000003",
       name: "Fresh Mandi",
       owner: "Ajay Kumar",
       rating: 4.4,
@@ -493,7 +493,7 @@ export default function BazaarBandhu() {
       trustScore: 75
     },
     {
-      id: 4,
+      id: "67be00000000000000000004",
       name: "Gupta Oil Depot",
       owner: "Ram Gupta",
       rating: 4.7,
@@ -510,7 +510,7 @@ export default function BazaarBandhu() {
       trustScore: 94
     },
     {
-      id: 5,
+      id: "67be00000000000000000005",
       name: "Krishna Grains",
       owner: "Krishna Dev",
       rating: 4.5,
@@ -527,7 +527,7 @@ export default function BazaarBandhu() {
       trustScore: 90
     },
     {
-      id: 6,
+      id: "67be00000000000000000006",
       name: "Organic Orchard",
       owner: "Vikram Singh",
       rating: 4.9,
@@ -544,7 +544,7 @@ export default function BazaarBandhu() {
       trustScore: 96
     },
     {
-      id: 7,
+      id: "67be00000000000000000007",
       name: "Dairy Pure",
       owner: "Manish Dairywala",
       rating: 4.7,
@@ -561,7 +561,7 @@ export default function BazaarBandhu() {
       trustScore: 95
     },
     {
-      id: 8,
+      id: "67be00000000000000000008",
       name: "Golden Bakes",
       owner: "Anjali Bakery",
       rating: 4.5,
@@ -578,7 +578,7 @@ export default function BazaarBandhu() {
       trustScore: 82
     },
     {
-      id: 9,
+      id: "67be00000000000000000009",
       name: "Saffron Valley",
       owner: "Zafar Iqbal",
       rating: 4.9,

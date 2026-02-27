@@ -44,6 +44,14 @@ import {
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
+
+// Helper: map category to emoji
+const categoryEmoji: Record<string, string> = {
+  vegetables: "🥦", fruits: "🍎", spices: "🌶️", oil: "🛢️",
+  grains: "🌾", dairy: "🥛", Vegetables: "🥦", Fruits: "🍎",
+  Spices: "🌶️", Oil: "🛢️", Grains: "🌾", Dairy: "🥛", default: "📦"
+};
 
 export default function Suppliers() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -52,24 +60,26 @@ export default function Suppliers() {
   const [selectedSupplierForProducts, setSelectedSupplierForProducts] = useState<any>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
+  const [liveProducts, setLiveProducts] = useState<any[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
 
   const { addToCart, itemCount, totalAmount } = useCart();
 
-  // Mock products for each supplier with images and descriptions
-  const supplierProducts: Record<number, any[]> = {
-    1: [
-      { id: "s1-p1", name: "Premium Onions (लाल प्याज)", price: 90, unit: "kg", category: "vegetables", image: "🧅", description: "Maharashtra special red onions, hand-picked for street food vendors." },
-      { id: "s1-p2", name: "Tomato (देसी टमाटर)", price: 85, unit: "kg", category: "vegetables", image: "🍅", description: "Fresh farm-to-table tomatoes, firm and juicy." },
-      { id: "s1-p3", name: "Potatoes (आलू - ज्योति)", price: 60, unit: "kg", category: "vegetables", image: "🥔", description: "Best quality potatoes for Vada Pav and French Fries." },
-    ],
-    2: [
-      { id: "s2-p1", name: "Turmeric Powder (हल्दी)", price: 180, unit: "kg", category: "spices", image: "🧪", description: "High curcumin content, pure and unadulterated." },
-      { id: "s2-p2", name: "Red Chilli (लाल मिर्च)", price: 240, unit: "kg", category: "spices", image: "🌶️", description: "Stemless hot red chillies, perfect for spicy chutneys." },
-    ],
-    4: [
-      { id: "s4-p1", name: "Mustard Oil (सरसों तेल)", price: 120, unit: "L", category: "oil", image: "🛢️", description: "Cold-pressed pure mustard oil for authentic taste." },
-      { id: "s4-p2", name: "Sunflower Oil", price: 150, unit: "L", category: "oil", image: "🌻", description: "Refined sunflower oil, low absorption." },
-    ]
+  // Fetch live products from DB when a supplier modal opens
+  const openSupplierModal = async (supplier: any) => {
+    setSelectedSupplierForProducts(supplier);
+    setIsProductModalOpen(true);
+    setLiveProducts([]);
+    setIsLoadingProducts(true);
+    try {
+      const data = await api.get(`/suppliers/${supplier.id}/products`);
+      setLiveProducts(data.products || []);
+    } catch (err) {
+      console.warn("Could not fetch live products, using fallbacks:", err);
+      setLiveProducts([]); // will show fallback in modal
+    } finally {
+      setIsLoadingProducts(false);
+    }
   };
 
   const categories = [
@@ -82,7 +92,7 @@ export default function Suppliers() {
 
   const suppliers = [
     {
-      id: 1,
+      id: "69a0e6891822b72108f2b813",
       name: "रवि ट्रेडर्स (Ravi Traders)",
       owner: "रवि भाई शर्मा",
       rating: 4.8,
@@ -103,7 +113,7 @@ export default function Suppliers() {
       trustScore: 92
     },
     {
-      id: 2,
+      id: "67be00000000000000000002",
       name: "महाराज होलसेल",
       owner: "सुनील महाराज",
       rating: 4.6,
@@ -124,7 +134,7 @@ export default function Suppliers() {
       trustScore: 88
     },
     {
-      id: 3,
+      id: "67be00000000000000000003",
       name: "फ्रेश मंडी",
       owner: "अजय कुमार",
       rating: 4.4,
@@ -145,7 +155,7 @@ export default function Suppliers() {
       trustScore: 75
     },
     {
-      id: 4,
+      id: "67be00000000000000000004",
       name: "गुप्ता ऑयल मिल्स",
       owner: "राजेश गुप्ता",
       rating: 4.9,
@@ -175,17 +185,22 @@ export default function Suppliers() {
   };
 
   const onAddToCart = (product: any, supplier: any) => {
-    const qty = itemQuantities[product.id] || 1;
+    const qty = itemQuantities[product._id || product.id] || 1;
+    const stock = product.currentStock ?? product.inventory ?? 9999;
+    if (qty > stock) {
+      toast.error(`Only ${stock} ${product.unit} available in stock`);
+      return;
+    }
     addToCart({
-      id: product.id,
+      id: String(product._id || product.id),
       name: product.name,
-      price: product.price,
+      price: product.pricePerUnit || product.price,
       quantity: qty,
       unit: product.unit,
       supplierId: supplier.id.toString(),
       supplierName: supplier.name
     });
-    toast.success(`${qty} ${product.unit} of ${product.name} added to cart`);
+    toast.success(`${qty} ${product.unit} of ${product.name} added to cart ✅`);
   };
 
   const filteredSuppliers = suppliers.filter(supplier => {
@@ -372,10 +387,7 @@ export default function Suppliers() {
                         </Button>
                         <Button
                           className="flex-1 rounded-2xl font-black bg-slate-900 text-white shadow-xl shadow-slate-900/20"
-                          onClick={() => {
-                            setSelectedSupplierForProducts(supplier);
-                            setIsProductModalOpen(true);
-                          }}
+                          onClick={() => openSupplierModal(supplier)}
                         >
                           View Catalog <ArrowRight className="h-4 w-4 ml-2" />
                         </Button>
@@ -491,52 +503,69 @@ export default function Suppliers() {
           </DialogHeader>
 
           <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4 no-scrollbar">
-            {(supplierProducts[selectedSupplierForProducts?.id] || [
-              { id: "misc-1", name: "Fresh Item 1", price: 100, unit: "kg", image: "📦", description: "Standard quality item for daily business needs." },
-              { id: "misc-2", name: "Budget Pack 2", price: 150, unit: "pack", image: "📦", description: "Value for money pack with wholesale pricing." }
-            ]).map((product) => (
-              <div key={product.id} className="group p-5 bg-white rounded-[2rem] border-2 border-slate-50 hover:border-orange-200 hover:shadow-xl hover:shadow-orange-200/20 transition-all">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-5">
-                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
-                      {product.image}
-                    </div>
-                    <div>
-                      <h4 className="font-black text-lg text-slate-900">{product.name}</h4>
-                      <p className="text-xs text-slate-500 mt-1 line-clamp-1">{product.description}</p>
-                      <p className="text-lg font-black text-orange-600 mt-2">₹{product.price} <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">/ {product.unit}</span></p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-center space-y-3">
-                    <div className="flex items-center bg-slate-100 rounded-2xl p-1.5 shadow-inner">
-                      <button
-                        onClick={() => handleQuantityChange(product.id, -1)}
-                        className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center hover:text-orange-600 transition-colors"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <span className="w-12 text-center font-black text-slate-900">
-                        {itemQuantities[product.id] || 1}
-                      </span>
-                      <button
-                        onClick={() => handleQuantityChange(product.id, 1)}
-                        className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center hover:text-orange-600 transition-colors"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <Button
-                      size="sm"
-                      className="w-full rounded-xl font-black bg-slate-900 text-white shadow-lg shadow-slate-200 py-6"
-                      onClick={() => onAddToCart(product, selectedSupplierForProducts)}
-                    >
-                      <ShoppingCart className="h-4 w-4 mr-2" /> Add
-                    </Button>
-                  </div>
-                </div>
+            {isLoadingProducts ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-slate-500 font-bold text-sm">Loading catalog...</p>
               </div>
-            ))}
+            ) : liveProducts.length === 0 ? (
+              <div className="text-center py-10 text-slate-400">
+                <Package className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p className="font-bold">No products in catalog yet</p>
+                <p className="text-xs mt-1">This supplier hasn't added any items to their catalog.</p>
+              </div>
+            ) : (
+              liveProducts.map((product) => {
+                const productKey = String(product._id || product.id);
+                const stock = product.currentStock ?? product.inventory ?? 0;
+                const emoji = categoryEmoji[product.category] || categoryEmoji.default;
+                return (
+                  <div key={productKey} className="group p-5 bg-white rounded-[2rem] border-2 border-slate-50 hover:border-orange-200 hover:shadow-xl hover:shadow-orange-200/20 transition-all">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-5">
+                        <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                          {product.image || emoji}
+                        </div>
+                        <div>
+                          <h4 className="font-black text-lg text-slate-900">{product.name}</h4>
+                          <p className="text-xs text-slate-500 mt-1 line-clamp-1">{product.description || product.category}</p>
+                          <p className="text-lg font-black text-orange-600 mt-2">₹{product.pricePerUnit || product.price} <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">/ {product.unit}</span></p>
+                          <span className={`text-[10px] font-black mt-1 inline-block px-2 py-0.5 rounded-full ${stock > 50 ? 'bg-green-100 text-green-700' : stock > 10 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'
+                            }`}>
+                            Stock: {stock} {product.unit}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-center space-y-3">
+                        <div className="flex items-center bg-slate-100 rounded-2xl p-1.5 shadow-inner">
+                          <button
+                            onClick={() => handleQuantityChange(productKey, -1)}
+                            className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center hover:text-orange-600 transition-colors"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </button>
+                          <span className="w-12 text-center font-black text-slate-900">
+                            {itemQuantities[productKey] || 1}
+                          </span>
+                          <button
+                            onClick={() => handleQuantityChange(productKey, 1)}
+                            className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center hover:text-orange-600 transition-colors"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="w-full rounded-xl font-black bg-slate-900 text-white shadow-lg shadow-slate-200 py-6"
+                          onClick={() => onAddToCart(product, selectedSupplierForProducts)}
+                        >
+                          <ShoppingCart className="h-4 w-4 mr-2" /> Add
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
           </div>
 
           <DialogFooter className="p-8 bg-white border-t border-slate-50">

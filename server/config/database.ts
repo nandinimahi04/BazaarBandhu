@@ -17,9 +17,25 @@ const connectDB = async () => {
 
 const createIndexes = async () => {
     try {
-        // Ensure geospatial indexes are created
         const db = mongoose.connection.db;
         if (!db) return;
+
+        // Drop old problematic compound index on two array fields (parallel arrays).
+        // This index causes "cannot index parallel arrays" errors during inserts/updates.
+        try {
+            const existingIndexes = await db.collection('users').indexes();
+            const badIndex = existingIndexes.find((idx: any) =>
+                idx.key &&
+                idx.key.productCategories !== undefined &&
+                idx.key['serviceAreas.pincode'] !== undefined
+            );
+            if (badIndex) {
+                await db.collection('users').dropIndex(badIndex.name);
+                console.log('⚠️  Dropped legacy parallel-array index on users collection.');
+            }
+        } catch (_) {
+            // Ignore if not found
+        }
 
         // Create compound indexes for better query performance
         await db.collection('users').createIndex({
@@ -32,8 +48,12 @@ const createIndexes = async () => {
             'rating.average': -1
         });
 
+        // Two separate indexes (replacing the old broken compound parallel-array index)
         await db.collection('users').createIndex({
-            productCategories: 1,
+            productCategories: 1
+        });
+
+        await db.collection('users').createIndex({
             'serviceAreas.pincode': 1
         });
 

@@ -34,6 +34,7 @@ export default function Checkout() {
             const payload = {
                 supplierId: cart[0].supplierId || "67be00000000000000000000", // Fallback if missing
                 items: cart.map(item => ({
+                    productId: item.id,
                     productName: item.name,
                     quantity: item.quantity,
                     unit: item.unit || 'kg',
