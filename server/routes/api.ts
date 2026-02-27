@@ -83,64 +83,43 @@ router.post('/upload/document', upload.single('document'), async (req: any, res:
 router.post('/auth/register', async (req: any, res: any) => {
     try {
         const {
-            fullName,
-            email,
-            password,
-            phone,
-            userType,
-            businessName,
-            address,
-            addressDetails, // street, city, state, pincode
-            // Supplier specific fields
-            productCategories,
-            deliveryRadius,
-            minOrderAmount,
-            paymentMethods,
-            workingHoursFrom,
-            workingHoursTo,
-            gstNumber,
-            fssaiLicense,
-            // Vendor specific fields
-            businessCategory,
-            stallName, // frontend alias
-            stallType  // frontend alias
+            fullName, email, password, phone, userType,
+            businessName, address, stallName, stallType,
+            location, addressDetails, businessCategory,
+            gstNumber, deliveryRadius, minOrderAmount,
+            productCategories, paymentMethods,
+            workingHoursFrom, workingHoursTo
         } = req.body;
 
-        // Validate required fields
+        console.log('[AUTH] Register Request:', { fullName, email, phone, userType });
+
         if (!fullName || !email || !password || !phone || !userType) {
-            return res.status(400).json({
-                error: 'Missing required fields: fullName, email, password, phone, userType'
-            });
+            return res.status(400).json({ error: 'Missing required fields: fullName, email, password, phone, userType' });
         }
 
-        // Check if user already exists
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({
-                error: 'User with this email already exists'
-            });
+            return res.status(400).json({ error: 'User with this email already exists' });
         }
 
-        // Hash password
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // Prepare address object
-        const finalAddress = addressDetails || address || {
-            street: 'Not specified',
-            city: 'Not specified',
-            state: 'Not specified',
-            pincode: '000000'
+        let newUser;
+
+        // Prepare common fields
+        const finalAddress = {
+            street: addressDetails?.street || address || 'Main Market',
+            city: addressDetails?.city || 'Solapur',
+            state: addressDetails?.state || 'Maharashtra',
+            pincode: addressDetails?.pincode || '413001',
+            country: 'India'
         };
 
-        // Prepare default location
         const finalLocation = {
             type: 'Point',
-            coordinates: [72.8777, 19.0760] // Mumbai coordinates
+            coordinates: location?.coordinates || [75.9064, 17.6599] // Solapur coordinates
         };
-
-        // Create user based on type
-        let newUser;
 
         if (userType === 'vendor') {
             newUser = new Vendor({
@@ -161,42 +140,54 @@ router.post('/auth/register', async (req: any, res: any) => {
                 password: hashedPassword,
                 phone,
                 userType,
-                businessName: businessName || 'My Supplier Business',
+                businessName: businessName || stallName || 'My Supplier Shop',
                 address: finalAddress,
                 location: finalLocation,
-                productCategories: productCategories || ['Vegetables'],
+                gstNumber,
                 deliveryRadius: deliveryRadius || 10,
                 minOrderAmount: minOrderAmount || 500,
-                paymentMethods: paymentMethods || ['Cash', 'UPI'],
+                productCategories: (productCategories && productCategories.length > 0) ? productCategories : ['Vegetables'],
+                paymentMethods: (paymentMethods && paymentMethods.length > 0) ? paymentMethods : ['Cash', 'UPI'],
                 workingHours: {
                     from: workingHoursFrom || '06:00',
                     to: workingHoursTo || '20:00'
-                },
-                gstNumber,
-                fssaiLicense
+                }
             });
         } else {
-            return res.status(400).json({
-                error: 'Invalid user type'
+            newUser = new User({
+                fullName,
+                email,
+                password: hashedPassword,
+                phone,
+                userType,
+                businessName: businessName || 'My Bazaar App'
             });
         }
 
         try {
             await newUser.save();
-        } catch (saveError) {
+            console.log(`[AUTH] Successfully registered ${userType}: ${email}`);
+        } catch (saveError: any) {
             console.error('[AUTH] Save error:', saveError);
+            if (saveError.name === 'ValidationError') {
+                const messages = Object.values(saveError.errors).map((err: any) => err.message);
+                return res.status(400).json({ error: `Validation Error: ${messages.join(', ')}` });
+            }
+            if (saveError.code === 11000) {
+                const field = Object.keys(saveError.keyPattern)[0];
+                return res.status(400).json({ error: `A user with this ${field} already exists.` });
+            }
             throw saveError;
         }
 
-        // Generate JWT token
         const token = jwt.sign(
             { userId: newUser._id, email: newUser.email, userType: newUser.userType },
-            process.env.JWT_SECRET || 'bazaarbandhu_secret',
+            process.env.JWT_SECRET || 'bazaar_secret_key_2024',
             { expiresIn: '7d' }
         );
 
         res.status(201).json({
-            message: 'User registered successfully',
+            message: 'Registration successful',
             token,
             user: {
                 id: newUser._id,
@@ -208,21 +199,14 @@ router.post('/auth/register', async (req: any, res: any) => {
         });
 
     } catch (error: any) {
-        console.error('[AUTH] Registration error:', error);
-
-        // Handle Mongoose validation errors
-        if (error.name === 'ValidationError') {
-            const messages = Object.values(error.errors).map((err: any) => err.message);
-            return res.status(400).json({
-                error: 'Validation failed',
-                details: messages
+        console.error('[AUTH] Critical Registration error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: 'Registration failed due to server error',
+                details: error.message,
+                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
             });
         }
-
-        res.status(500).json({
-            error: 'Registration failed',
-            details: error.message
-        });
     }
 });
 
@@ -652,30 +636,38 @@ router.patch('/vendors/inventory', authenticateToken, async (req: any, res: any)
             return res.status(403).json({ error: 'Access denied. Vendors only.' });
         }
 
-        const { product } = req.body; // { productName, category, quantity, unit, costPrice }
+        const { product, currentInventory } = req.body;
         const vendor = await Vendor.findById(req.user.userId);
 
         if (!vendor) {
             return res.status(404).json({ error: 'Vendor not found' });
         }
 
-        const itemIndex = vendor.currentInventory.findIndex(
-            (item: any) => item.productName === product.productName
-        );
+        if (currentInventory && Array.isArray(currentInventory)) {
+            // Support full inventory replacement (used by dedicated inventory page)
+            vendor.currentInventory = currentInventory;
+        } else if (product) {
+            // Support singular product updates (used by quick-action modals)
+            const itemIndex = vendor.currentInventory.findIndex(
+                (item: any) => item.productName === product.productName
+            );
 
-        if (itemIndex >= 0) {
-            // Update existing
-            vendor.currentInventory[itemIndex] = {
-                ...vendor.currentInventory[itemIndex].toObject(),
-                ...product,
-                purchaseDate: new Date()
-            };
+            if (itemIndex >= 0) {
+                // Update existing
+                vendor.currentInventory[itemIndex] = {
+                    ...vendor.currentInventory[itemIndex].toObject(),
+                    ...product,
+                    purchaseDate: new Date()
+                };
+            } else {
+                // Add new
+                vendor.currentInventory.push({
+                    ...product,
+                    purchaseDate: new Date()
+                });
+            }
         } else {
-            // Add new
-            vendor.currentInventory.push({
-                ...product,
-                purchaseDate: new Date()
-            });
+            return res.status(400).json({ error: 'Either "product" or "currentInventory" must be provided' });
         }
 
         await vendor.save();

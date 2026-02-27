@@ -88,6 +88,12 @@ const paymentSchema = new mongoose.Schema({
     gatewayTransactionId: { type: String }
 });
 
+interface IOrderStatic extends mongoose.Model<any> {
+    getAnalytics(vendorId: string, period?: string): Promise<any[]>;
+    getSupplierAnalytics(supplierId: string, period?: string): Promise<any[]>;
+    getOrdersInRange(startDate: Date, endDate: Date, filters?: any): Promise<any[]>;
+}
+
 // Main Order Schema
 const orderSchema = new mongoose.Schema({
     // Order Identification
@@ -420,6 +426,6 @@ orderSchema.statics.getSupplierAnalytics = function (supplierId: string, period 
     ]);
 };
 
-const Order = mongoose.models.Order || mongoose.model('Order', orderSchema);
+const Order = (mongoose.models.Order as IOrderStatic) || mongoose.model<any, IOrderStatic>('Order', orderSchema);
 
 export default Order;

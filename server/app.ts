@@ -7,6 +7,11 @@ import morgan from 'morgan';
 // @ts-ignore
 import connectDB from './config/database.js';
 import 'dotenv/config';
+import './models/User.js';
+import './models/Vendor.js';
+import './models/Supplier.js';
+import './models/Order.js';
+
 // @ts-ignore
 import apiRoutes from './routes/api.js';
 

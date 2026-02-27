@@ -46,6 +46,7 @@ export default function Register() {
     primaryItems: [],
     // Supplier specific
     gstNumber: "",
+    pincode: "",
     deliveryRadius: "10",
     minOrderAmount: "500"
   });
@@ -88,11 +89,13 @@ export default function Register() {
   ];
 
   const categories = [
-    "Fruits & Vegetables",
-    "Grains & Pulses",
-    "Dairy & Eggs",
-    "Spices & Tea",
-    "Packaging Materials",
+    "Vegetables",
+    "Fruits",
+    "Spices",
+    "Grains",
+    "Dairy",
+    "Meat",
+    "Dry Goods",
     "Beverages"
   ];
 
@@ -130,32 +133,47 @@ export default function Register() {
   };
 
   const handleSubmit = async () => {
+    // Basic Validation
+    if (!formData.name || !formData.email || !formData.password || !formData.phone) {
+      toast.error('❌ Please fill in all required basic fields.');
+      return;
+    }
+
+    // Role specific validation
+    if (role === 'supplier' && formData.gstNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(formData.gstNumber)) {
+      toast.error('❌ Invalid GST number format. Example: 27AABCU9603R1ZX');
+      return;
+    }
+
     try {
       const payload = {
         fullName: formData.name,
         email: formData.email,
         password: formData.password,
         phone: formData.phone,
-        userType: role,
-        businessName: formData.businessName,
-        businessCategory: formData.businessCategory,
+        userType: role, // 'vendor' or 'supplier'
+        businessName: formData.businessName || formData.name,
+        address: formData.address || formData.location || 'Local Market',
         addressDetails: {
-          street: formData.address || formData.location,
-          city: 'City',
-          state: 'State',
-          pincode: '000000'
+          street: formData.location || 'Local Market',
+          city: 'Solapur',
+          state: 'Maharashtra',
+          pincode: formData.pincode || '413001'
         },
-        // Role specific extras
         ...(role === 'supplier' ? {
           gstNumber: formData.gstNumber,
-          deliveryRadius: parseInt(formData.deliveryRadius),
-          minOrderAmount: parseInt(formData.minOrderAmount),
-          productCategories: [formData.businessCategory],
-          fssaiLicense: verificationDocumentUrl // Store document URL here
+          deliveryRadius: parseInt(formData.deliveryRadius) || 10,
+          minOrderAmount: parseInt(formData.minOrderAmount) || 500,
+          productCategories: formData.businessCategory ? [formData.businessCategory] : (formData.primaryItems.length > 0 ? formData.primaryItems : ['Vegetables']),
+          fssaiLicense: verificationDocumentUrl,
+          paymentMethods: ['Cash', 'UPI', 'Bank Transfer'],
+          workingHoursFrom: '08:00',
+          workingHoursTo: '20:00'
         } : {
-          stallName: formData.businessName,
-          stallType: formData.businessCategory,
-          verificationDocument: verificationDocumentUrl // Custom field for vendors
+          businessCategory: 'street_food',
+          stallName: formData.businessName || formData.name,
+          stallType: 'street_food',
+          verificationDocument: verificationDocumentUrl
         })
       };
 
@@ -374,15 +392,27 @@ export default function Register() {
               {/* Step 3: Location and Language */}
               {currentStep === 3 && (
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Operating Area / Locality *</Label>
-                    <Input
-                      id="location"
-                      placeholder="e.g. Dadar West Market"
-                      className="h-12 rounded-xl"
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="location">Operating Area *</Label>
+                      <Input
+                        id="location"
+                        placeholder="e.g. Dadar"
+                        className="h-12 rounded-xl"
+                        value={formData.location}
+                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="pincode">Pincode *</Label>
+                      <Input
+                        id="pincode"
+                        placeholder="400001"
+                        className="h-12 rounded-xl"
+                        value={formData.pincode}
+                        onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">

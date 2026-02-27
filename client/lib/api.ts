@@ -16,11 +16,18 @@ export const api = {
             headers
         });
 
+        if (response.status >= 400) {
+            const errorData = await response.json();
+            const errorMessage = errorData.error || 'Request failed';
+            const errorDetails = errorData.details ? `: ${errorData.details}` : '';
+            throw new Error(`${errorMessage}${errorDetails}`);
+        }
+
         const data = await response.json();
 
-        if (!response.ok) {
-            throw new Error(data.error || 'Request failed');
-        }
+        // The previous error check `if (!response.ok)` is now covered by `if (response.status >= 400)`
+        // and the error message is more detailed.
+        // This block is now only reached for successful responses (status < 400).
 
         return data;
     },

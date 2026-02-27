@@ -25,6 +25,7 @@ import Login from "./pages/Login";
 import Inventory from "./pages/Inventory";
 import SupplierOrders from "./pages/SupplierOrders";
 import Dashboard from "./pages/Dashboard"; // Optional: could be used instead of BazaarBandhu
+import VendorInventory from "./pages/VendorInventory";
 
 // Context
 import { CartProvider } from "./context/CartContext";
@@ -114,7 +115,13 @@ const AppContent = () => {
         <Route path="/chat" element={user ? <Chat /> : <Navigate to="/login" replace />} />
         <Route path="/deepseek-chat" element={user ? <DeepSeekChat /> : <Navigate to="/login" replace />} />
         <Route path="/orders" element={user ? <Orders /> : <Navigate to="/login" replace />} />
-        <Route path="/inventory" element={user ? <Inventory /> : <Navigate to="/login" replace />} />
+        <Route path="/inventory" element={
+          user ? (
+            user.userType === "supplier" ? <Inventory /> : <VendorInventory />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        } />
         <Route path="/supplier-orders" element={user?.userType === "supplier" ? <SupplierOrders /> : <Navigate to="/login" replace />} />
         <Route path="/credit" element={user ? <Credit /> : <Navigate to="/login" replace />} />
         <Route path="/checkout" element={user ? <Checkout /> : <Navigate to="/login" replace />} />

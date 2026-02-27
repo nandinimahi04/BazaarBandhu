@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -14,6 +14,7 @@ import {
   Clock,
   Package,
   TrendingUp,
+  TrendingDown,
   Shield,
   Filter,
   Heart,
@@ -23,8 +24,13 @@ import {
   Users,
   CheckCircle,
   Plus,
+  Minus,
   ShoppingCart,
-  ChevronRight
+  ChevronRight,
+  Info,
+  Zap,
+  Tag,
+  ArrowRight
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import {
@@ -37,6 +43,7 @@ import {
 } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function Suppliers() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -44,38 +51,39 @@ export default function Suppliers() {
   const [sortBy, setSortBy] = useState("rating");
   const [selectedSupplierForProducts, setSelectedSupplierForProducts] = useState<any>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
 
   const { addToCart, itemCount, totalAmount } = useCart();
 
-  // Mock products for each supplier
+  // Mock products for each supplier with images and descriptions
   const supplierProducts: Record<number, any[]> = {
     1: [
-      { id: "s1-p1", name: "प्याज (Onion)", price: 90, unit: "kg", category: "vegetables" },
-      { id: "s1-p2", name: "टमाटर (Tomato)", price: 85, unit: "kg", category: "vegetables" },
-      { id: "s1-p3", name: "आलू (Potato)", price: 60, unit: "kg", category: "vegetables" },
+      { id: "s1-p1", name: "Premium Onions (लाल प्याज)", price: 90, unit: "kg", category: "vegetables", image: "🧅", description: "Maharashtra special red onions, hand-picked for street food vendors." },
+      { id: "s1-p2", name: "Tomato (देसी टमाटर)", price: 85, unit: "kg", category: "vegetables", image: "🍅", description: "Fresh farm-to-table tomatoes, firm and juicy." },
+      { id: "s1-p3", name: "Potatoes (आलू - ज्योति)", price: 60, unit: "kg", category: "vegetables", image: "🥔", description: "Best quality potatoes for Vada Pav and French Fries." },
     ],
     2: [
-      { id: "s2-p1", name: "हल्दी पाउडर", price: 180, unit: "kg", category: "spices" },
-      { id: "s2-p2", name: "लाल मिर्च", price: 240, unit: "kg", category: "spices" },
+      { id: "s2-p1", name: "Turmeric Powder (हल्दी)", price: 180, unit: "kg", category: "spices", image: "🧪", description: "High curcumin content, pure and unadulterated." },
+      { id: "s2-p2", name: "Red Chilli (लाल मिर्च)", price: 240, unit: "kg", category: "spices", image: "🌶️", description: "Stemless hot red chillies, perfect for spicy chutneys." },
     ],
     4: [
-      { id: "s4-p1", name: "सरसों तेल", price: 120, unit: "L", category: "oil" },
-      { id: "s4-p2", name: "सूरजमुखी तेल", price: 150, unit: "L", category: "oil" },
+      { id: "s4-p1", name: "Mustard Oil (सरसों तेल)", price: 120, unit: "L", category: "oil", image: "🛢️", description: "Cold-pressed pure mustard oil for authentic taste." },
+      { id: "s4-p2", name: "Sunflower Oil", price: 150, unit: "L", category: "oil", image: "🌻", description: "Refined sunflower oil, low absorption." },
     ]
   };
 
   const categories = [
-    { id: "all", name: "सभी", count: 24 },
-    { id: "vegetables", name: "सब्जियां", count: 8 },
-    { id: "spices", name: "मसाले", count: 6 },
-    { id: "oil", name: "तेल", count: 4 },
-    { id: "grains", name: "अनाज", count: 6 }
+    { id: "all", name: "सभी", count: 24, icon: <Package className="w-4 h-4 mr-1" /> },
+    { id: "vegetables", name: "सब्जियां", count: 8, icon: <Tag className="w-4 h-4 mr-1" /> },
+    { id: "spices", name: "मसाले", count: 6, icon: <Zap className="w-4 h-4 mr-1" /> },
+    { id: "oil", name: "तेल", count: 4, icon: <Droplets className="w-4 h-4 mr-1" /> },
+    { id: "grains", name: "अनाज", count: 6, icon: <Wheat className="w-4 h-4 mr-1" /> }
   ];
 
   const suppliers = [
     {
       id: 1,
-      name: "रवि ट्रेडर्स",
+      name: "रवि ट्रेडर्स (Ravi Traders)",
       owner: "रवि भाई शर्मा",
       rating: 4.8,
       reviews: 156,
@@ -159,6 +167,27 @@ export default function Suppliers() {
     }
   ];
 
+  const handleQuantityChange = (id: string, delta: number) => {
+    setItemQuantities(prev => ({
+      ...prev,
+      [id]: Math.max(1, (prev[id] || 1) + delta)
+    }));
+  };
+
+  const onAddToCart = (product: any, supplier: any) => {
+    const qty = itemQuantities[product.id] || 1;
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      quantity: qty,
+      unit: product.unit,
+      supplierId: supplier.id.toString(),
+      supplierName: supplier.name
+    });
+    toast.success(`${qty} ${product.unit} of ${product.name} added to cart`);
+  };
+
   const filteredSuppliers = suppliers.filter(supplier => {
     const matchesSearch = supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       supplier.speciality.some(item => item.includes(searchQuery));
@@ -179,45 +208,30 @@ export default function Suppliers() {
     }
   });
 
-  const getPricingBadge = (pricing: string) => {
-    switch (pricing) {
-      case "wholesale":
-        return <Badge className="bg-green-100 text-green-800 border-green-300">होलसेल रेट</Badge>;
-      case "competitive":
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-300">प्रतिस्पर्धी</Badge>;
-      case "budget":
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300">बजट फ्रेंडली</Badge>;
-      case "premium":
-        return <Badge className="bg-purple-100 text-purple-800 border-purple-300">प्रीमियम</Badge>;
-      default:
-        return null;
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-100">
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b border-orange-200 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
+    <div className="min-h-screen bg-[#FDFBF7]">
+      {/* Premium Header */}
+      <header className="bg-white/95 backdrop-blur-md border-b border-orange-100 sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-3">
-              <div className="bg-gradient-to-br from-orange-500 to-yellow-500 p-2 rounded-xl">
+            <Link to="/" className="flex items-center space-x-3 group">
+              <div className="bg-gradient-to-br from-orange-600 to-amber-500 p-2.5 rounded-2xl shadow-lg shadow-orange-200/50 group-hover:scale-105 transition-transform">
                 <Package className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-orange-900">Saarthi+</h1>
-                <p className="text-sm text-orange-700">विश्वसनीय सप्लायर्स</p>
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight">Saarthi+ Market</h1>
+                <p className="text-[10px] uppercase tracking-widest text-orange-600 font-bold">Trusted Suppliers Only</p>
               </div>
             </Link>
 
             <div className="flex items-center space-x-4">
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
-                <MapPin className="h-3 w-3 mr-1" />
-                सोलापुर एरिया
-              </Badge>
+              <div className="hidden md:flex items-center space-x-2 bg-slate-100 px-3 py-1.5 rounded-full">
+                <MapPin className="h-4 w-4 text-slate-500" />
+                <span className="text-sm font-bold text-slate-700">Solapur Area</span>
+              </div>
               <Link to="/">
-                <Button variant="outline" size="sm">
-                  डैशबोर्ड
+                <Button variant="ghost" size="sm" className="font-bold text-slate-600 hover:text-orange-600">
+                  Dashboard
                 </Button>
               </Link>
             </div>
@@ -225,244 +239,212 @@ export default function Suppliers() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6">
-        {/* Search and Filters */}
-        <div className="mb-6 space-y-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+      <div className="container mx-auto px-6 py-8">
+        {/* Amazon-style Search Bar */}
+        <div className="max-w-4xl mx-auto mb-10 space-y-6">
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="flex-1 w-full relative group">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-orange-600 transition-colors" />
               <Input
-                placeholder="सप्लायर या सामान का नाम खोजें..."
-                className="pl-10"
+                placeholder="Search for suppliers, spices, vegetables or bulk deals..."
+                className="pl-12 h-14 bg-white border-2 border-slate-100 focus:border-orange-500 rounded-2xl shadow-xl shadow-slate-200/20 text-lg transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
 
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="सॉर्ट करें" />
+              <SelectTrigger className="w-full md:w-56 h-14 rounded-2xl border-2 border-slate-100 bg-white font-bold text-slate-700 shadow-xl shadow-slate-200/20">
+                <SelectValue placeholder="Sort Results" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="rating">रेटिंग के अनुसार</SelectItem>
-                <SelectItem value="distance">दूरी के अनुसार</SelectItem>
-                <SelectItem value="price">मिन ऑर्डर के अनुसार</SelectItem>
+              <SelectContent className="rounded-2xl border-none shadow-2xl">
+                <SelectItem value="rating" className="py-3 font-medium">Top Rated Suppliers</SelectItem>
+                <SelectItem value="distance" className="py-3 font-medium">Closest to My Stall</SelectItem>
+                <SelectItem value="price" className="py-3 font-medium">Lowest Minimum Order</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Category Tabs */}
-          <div className="flex space-x-2 overflow-x-auto pb-2">
+          {/* Quick Filter Bubbles */}
+          <div className="flex space-x-3 overflow-x-auto pb-4 no-scrollbar">
             {categories.map((category) => (
-              <Button
+              <button
                 key={category.id}
-                variant={selectedCategory === category.id ? "default" : "outline"}
-                size="sm"
                 onClick={() => setSelectedCategory(category.id)}
-                className="whitespace-nowrap"
+                className={cn(
+                  "flex items-center px-6 py-2.5 rounded-full text-sm font-black transition-all whitespace-nowrap border-2",
+                  selectedCategory === category.id
+                    ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20 scale-105"
+                    : "bg-white border-slate-100 text-slate-600 hover:border-orange-200 hover:text-orange-600"
+                )}
               >
-                {category.name} ({category.count})
-              </Button>
+                {category.icon} {category.name} <span className="ml-2 opacity-50 px-2 py-0.5 bg-slate-100 rounded-full text-[10px] text-slate-900">{category.count}</span>
+              </button>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Suppliers List */}
-          <div className="lg:col-span-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Main Supplier Feed */}
+          <div className="lg:col-span-3 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {sortedSuppliers.map((supplier) => (
-                <Card key={supplier.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-12 w-12">
-                          <AvatarFallback className="bg-orange-100 text-orange-800 font-semibold">
-                            {supplier.name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
+                <Card key={supplier.id} className="border-none shadow-xl shadow-slate-200/30 rounded-[2.5rem] overflow-hidden bg-white hover:shadow-2xl hover:shadow-orange-200/40 transition-all duration-300 transform hover:-translate-y-1">
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-6">
+                      <div className="flex items-center space-x-4">
+                        <div className="relative">
+                          <Avatar className="h-16 w-16 border-2 border-orange-100 p-0.5">
+                            <AvatarFallback className="bg-orange-50 text-orange-600 font-black text-xl">
+                              {supplier.name.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          {supplier.verified && (
+                            <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1 border-2 border-white">
+                              <Shield className="h-3 w-3 text-white" />
+                            </div>
+                          )}
+                        </div>
                         <div>
                           <div className="flex items-center space-x-2">
-                            <h3 className="font-semibold text-lg">{supplier.name}</h3>
-                            {supplier.verified && (
-                              <Shield className="h-4 w-4 text-green-600" />
-                            )}
+                            <h3 className="font-black text-xl text-slate-900">{supplier.name}</h3>
                           </div>
-                          <p className="text-sm text-gray-600">{supplier.owner}</p>
-                          <div className="flex items-center space-x-4 mt-1">
-                            <div className="flex items-center space-x-1">
-                              <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                              <span className="text-sm font-medium">{supplier.rating}</span>
-                              <span className="text-xs text-gray-500">({supplier.reviews})</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <MapPin className="h-3 w-3 text-gray-400" />
-                              <span className="text-xs text-gray-600">{supplier.distance}</span>
-                            </div>
-                          </div>
+                          <p className="text-sm font-bold text-slate-500">{supplier.owner}</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm">
-                        <Heart className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <MapPin className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">{supplier.location}</span>
+                      <button className="p-2.5 bg-slate-50 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-colors">
+                        <Heart className="h-5 w-5" />
+                      </button>
                     </div>
 
-                    <div className="flex flex-wrap gap-1">
-                      {supplier.speciality.map((item, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {item}
-                        </Badge>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="h-3 w-3 text-gray-400" />
-                        <span className="text-gray-600">{supplier.deliveryTime}</span>
+                    <div className="grid grid-cols-3 gap-3 mb-6">
+                      <div className="text-center p-3 bg-slate-50 rounded-2xl">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rating</p>
+                        <div className="flex items-center justify-center text-amber-500 mt-1">
+                          <Star className="h-3 w-3 fill-current mr-1" />
+                          <span className="text-sm font-black text-slate-900">{supplier.rating}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <IndianRupee className="h-3 w-3 text-gray-400" />
-                        <span className="text-gray-600">मिन ₹{supplier.minOrder}</span>
+                      <div className="text-center p-3 bg-slate-50 rounded-2xl">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trust</p>
+                        <div className="flex items-center justify-center text-emerald-600 mt-1">
+                          <Zap className="h-3 w-3 fill-current mr-1" />
+                          <span className="text-sm font-black text-slate-900">{supplier.trustScore}%</span>
+                        </div>
+                      </div>
+                      <div className="text-center p-3 bg-slate-50 rounded-2xl">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ETA</p>
+                        <div className="flex items-center justify-center text-blue-600 mt-1">
+                          <Clock className="h-3 w-3 mr-1" />
+                          <span className="text-xs font-black text-slate-900">{supplier.deliveryTime.split(' ')[0]}h</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      {getPricingBadge(supplier.pricing)}
-                      <div className="flex items-center space-x-1 text-xs text-green-600">
-                        <TrendingUp className="h-3 w-3" />
-                        <span>ट्रस्ट स्कोर: {supplier.trustScore}%</span>
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2 text-slate-600">
+                        <MapPin className="h-4 w-4 shrink-0 text-slate-400" />
+                        <span className="text-sm font-medium truncate">{supplier.location}</span>
                       </div>
-                    </div>
 
-                    {supplier.currentOffers.length > 0 && (
-                      <div className="bg-yellow-50 p-2 rounded-lg">
-                        <p className="text-xs font-medium text-yellow-800 mb-1">आज के ऑफर:</p>
-                        {supplier.currentOffers.map((offer, index) => (
-                          <p key={index} className="text-xs text-yellow-700">• {offer}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {supplier.speciality.map((item, index) => (
+                          <span key={index} className="px-3 py-1 bg-slate-100 text-[10px] font-black uppercase text-slate-500 rounded-full tracking-wider">
+                            {item}
+                          </span>
                         ))}
                       </div>
-                    )}
 
-                    <div className="flex space-x-2">
-                      <Button size="sm" className="flex-1 bg-gradient-to-r from-orange-500 to-yellow-500">
-                        <MessageCircle className="h-3 w-3 mr-1" />
-                        संपर्क कर���ं
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => {
-                          setSelectedSupplierForProducts(supplier);
-                          setIsProductModalOpen(true);
-                        }}
-                      >
-                        <Package className="h-3 w-3 mr-1" />
-                        ऑर्डर करें
-                      </Button>
-                    </div>
+                      {supplier.currentOffers.length > 0 && (
+                        <div className="bg-orange-50/50 p-3 rounded-2xl border border-orange-100">
+                          <div className="flex items-center text-orange-700 text-xs font-black uppercase tracking-widest mb-1">
+                            <Zap className="h-3 w-3 mr-1" /> Today's Offer
+                          </div>
+                          {supplier.currentOffers.map((offer, index) => (
+                            <p key={index} className="text-xs font-bold text-orange-900/70">{offer}</p>
+                          ))}
+                        </div>
+                      )}
 
-                    <div className="flex justify-between text-xs text-gray-500 pt-2 border-t">
-                      <span>कुल ऑर्डर: {supplier.totalOrders}</span>
-                      <span>समूह ऑर्डर: {supplier.groupOrders}</span>
-                      <span>अंतिम डिलीवरी: {supplier.lastDelivery}</span>
+                      <div className="flex space-x-3 pt-4 border-t border-slate-50">
+                        <Button variant="outline" className="flex-1 rounded-2xl font-bold border-slate-200">
+                          Chat
+                        </Button>
+                        <Button
+                          className="flex-1 rounded-2xl font-black bg-slate-900 text-white shadow-xl shadow-slate-900/20"
+                          onClick={() => {
+                            setSelectedSupplierForProducts(supplier);
+                            setIsProductModalOpen(true);
+                          }}
+                        >
+                          View Catalog <ArrowRight className="h-4 w-4 ml-2" />
+                        </Button>
+                      </div>
                     </div>
-                  </CardContent>
+                  </div>
                 </Card>
               ))}
             </div>
-
-            {sortedSuppliers.length === 0 && (
-              <Card>
-                <CardContent className="text-center py-8">
-                  <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">कोई सप्लायर नहीं मिला</p>
-                  <p className="text-sm text-gray-500 mt-1">खोज की शर्तें बदलकर दोबारा कोशिश करें</p>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
-          {/* Sidebar */}
+          {/* Right Sidebar Info */}
           <div className="space-y-6">
-            {/* Quick Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">त्वरित जानकारी</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-orange-600">24</p>
-                  <p className="text-sm text-gray-600">कुल सप्लायर्स</p>
+            <Card className="border-none shadow-xl shadow-slate-200/40 rounded-[2.5rem] bg-slate-900 text-white overflow-hidden">
+              <div className="p-8">
+                <h4 className="text-xl font-black mb-6">Market Insights</h4>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                        <TrendingUp className="h-5 w-5 text-green-400" />
+                      </div>
+                      <span className="text-sm font-bold">Onion Rates</span>
+                    </div>
+                    <span className="text-sm font-black text-green-400">Stable</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                        <TrendingDown className="h-5 w-5 text-red-400" />
+                      </div>
+                      <span className="text-sm font-bold">Oil Prices</span>
+                    </div>
+                    <span className="text-sm font-black text-red-400">-5%</span>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">18</p>
-                  <p className="text-sm text-gray-600">वेरिफाइड सप्लायर्स</p>
+                <div className="mt-8 p-4 bg-white/5 rounded-2xl border border-white/10">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30 mb-2">Recommendation</p>
+                  <p className="text-xs font-bold leading-relaxed opacity-80">Bulk purchase suggested for Spices this week. Prices expected to rise by 12% next month.</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">4.7</p>
-                  <p className="text-sm text-gray-600">औसत रेटिंग</p>
-                </div>
-              </CardContent>
+              </div>
             </Card>
 
-            {/* Top Rated */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center space-x-2">
-                  <Star className="h-4 w-4 text-yellow-500" />
-                  <span>टॉप रेटेड</span>
-                </CardTitle>
+            <Card className="border-none shadow-xl shadow-slate-200/40 rounded-[2.5rem] bg-white">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg font-black italic">Bazaar Leaderboard</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {suppliers.sort((a, b) => b.rating - a.rating).slice(0, 3).map((supplier, index) => (
-                    <div key={supplier.id} className="flex items-center space-x-3 p-2 bg-gray-50 rounded-lg">
-                      <div className="bg-orange-100 text-orange-800 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                    <div key={supplier.id} className="flex items-center space-x-4 p-3 hover:bg-slate-50 rounded-2xl transition-colors cursor-pointer">
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black",
+                        index === 0 ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-500"
+                      )}>
                         {index + 1}
                       </div>
                       <div className="flex-1">
-                        <p className="font-medium text-sm">{supplier.name}</p>
-                        <div className="flex items-center space-x-1">
-                          <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                          <span className="text-xs">{supplier.rating}</span>
+                        <p className="font-bold text-sm text-slate-900">{supplier.name.split(' ')[0]}</p>
+                        <div className="flex items-center space-x-1 opacity-60">
+                          <Star className="h-2 w-2 fill-current" />
+                          <span className="text-[10px] font-black">{supplier.rating}</span>
                         </div>
+                      </div>
+                      <div className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center">
+                        <ChevronRight className="h-4 w-4 text-slate-300" />
                       </div>
                     </div>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center space-x-2">
-                  <Clock className="h-4 w-4 text-blue-500" />
-                  <span>हाल की गतिविधि</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>गुप्ता ऑयल मिल्स से डिलीवरी</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span>नया सप्लायर जोड़ा गया</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <span>रेट अपडेट हुए</span>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -470,84 +452,167 @@ export default function Suppliers() {
         </div>
       </div>
 
-      {/* Floating Cart Button */}
+      {/* Floating Amazon-style Cart Button */}
       {itemCount > 0 && (
-        <Link to="/checkout">
-          <div className="fixed bottom-6 right-6 z-50">
-            <Button className="h-16 px-6 rounded-full bg-orange-600 hover:bg-orange-700 shadow-2xl shadow-orange-500/40 flex items-center space-x-3 group relative overflow-hidden">
-              <div className="absolute inset-0 bg-white/10 group-hover:translate-x-full transition-transform duration-500" />
-              <div className="relative flex items-center space-x-3">
-                <div className="relative">
-                  <ShoppingCart className="w-6 h-6 text-white" />
-                  <Badge className="absolute -top-3 -right-3 h-6 w-6 rounded-full bg-white text-orange-600 flex items-center justify-center border-2 border-orange-600 font-bold p-0">
-                    {itemCount}
-                  </Badge>
+        <div className="fixed bottom-10 right-10 z-50 animate-in slide-in-from-right-10 duration-500">
+          <Link to="/checkout">
+            <button className="h-20 px-8 rounded-[2rem] bg-slate-900 text-white shadow-2xl shadow-slate-400 flex items-center space-x-6 hover:scale-105 transition-all group overflow-hidden">
+              <div className="relative">
+                <ShoppingCart className="w-8 h-8 text-white relative z-10" />
+                <div className="absolute -top-3 -right-3 h-7 w-7 rounded-full bg-orange-600 text-white flex items-center justify-center border-4 border-slate-900 font-black text-xs">
+                  {itemCount}
                 </div>
-                <div className="text-left border-l border-white/20 pl-3">
-                  <p className="text-[10px] text-orange-100 uppercase font-bold tracking-wider">Your Cart</p>
-                  <p className="text-lg font-bold text-white leading-none">₹{totalAmount}</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-white/70 group-hover:translate-x-1 transition-transform" />
               </div>
-            </Button>
-          </div>
-        </Link>
+              <div className="text-left py-1 pr-6 border-r border-white/10">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-1">Items in Cart</p>
+                <p className="text-2xl font-black italic">₹{totalAmount.toLocaleString()}</p>
+              </div>
+              <div className="flex items-center font-black uppercase text-[10px] tracking-[0.2em]">
+                Checkout <ChevronRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </button>
+          </Link>
+        </div>
       )}
 
-      {/* Product Selection Modal */}
+      {/* Amazon-style Product Modal */}
       <Dialog open={isProductModalOpen} onOpenChange={setIsProductModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{selectedSupplierForProducts?.name} - Catalog</DialogTitle>
-            <DialogDescription>
-              Select items to add to your group order.
-            </DialogDescription>
+        <DialogContent className="sm:max-w-xl rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden bg-[#F8FAFC]">
+          <DialogHeader className="p-8 pb-4 bg-white">
+            <div className="flex items-center space-x-4 mb-2">
+              <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center">
+                <Package className="h-6 w-6 text-orange-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-black text-slate-900">{selectedSupplierForProducts?.name}</DialogTitle>
+                <DialogDescription className="text-slate-500 font-medium">Verified Supplier • {selectedSupplierForProducts?.deliveryTime} Delivery</DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+
+          <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4 no-scrollbar">
             {(supplierProducts[selectedSupplierForProducts?.id] || [
-              { id: "misc-1", name: "Sample Item 1", price: 100, unit: "kg" },
-              { id: "misc-2", name: "Sample Item 2", price: 150, unit: "pack" }
+              { id: "misc-1", name: "Fresh Item 1", price: 100, unit: "kg", image: "📦", description: "Standard quality item for daily business needs." },
+              { id: "misc-2", name: "Budget Pack 2", price: 150, unit: "pack", image: "📦", description: "Value for money pack with wholesale pricing." }
             ]).map((product) => (
-              <div key={product.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-orange-200 transition-colors">
-                <div>
-                  <p className="font-bold text-slate-900">{product.name}</p>
-                  <p className="text-sm text-slate-500">₹{product.price}/{product.unit}</p>
+              <div key={product.id} className="group p-5 bg-white rounded-[2rem] border-2 border-slate-50 hover:border-orange-200 hover:shadow-xl hover:shadow-orange-200/20 transition-all">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-5">
+                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                      {product.image}
+                    </div>
+                    <div>
+                      <h4 className="font-black text-lg text-slate-900">{product.name}</h4>
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-1">{product.description}</p>
+                      <p className="text-lg font-black text-orange-600 mt-2">₹{product.price} <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">/ {product.unit}</span></p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="flex items-center bg-slate-100 rounded-2xl p-1.5 shadow-inner">
+                      <button
+                        onClick={() => handleQuantityChange(product.id, -1)}
+                        className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center hover:text-orange-600 transition-colors"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <span className="w-12 text-center font-black text-slate-900">
+                        {itemQuantities[product.id] || 1}
+                      </span>
+                      <button
+                        onClick={() => handleQuantityChange(product.id, 1)}
+                        className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center hover:text-orange-600 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="w-full rounded-xl font-black bg-slate-900 text-white shadow-lg shadow-slate-200 py-6"
+                      onClick={() => onAddToCart(product, selectedSupplierForProducts)}
+                    >
+                      <ShoppingCart className="h-4 w-4 mr-2" /> Add
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  size="sm"
-                  className="bg-orange-500 hover:bg-orange-600 shadow-sm"
-                  onClick={() => {
-                    addToCart({
-                      id: product.id,
-                      name: product.name,
-                      price: product.price,
-                      quantity: 1,
-                      unit: product.unit,
-                      supplierId: selectedSupplierForProducts.id.toString(),
-                      supplierName: selectedSupplierForProducts.name
-                    });
-                  }}
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add
-                </Button>
               </div>
             ))}
           </div>
-          <DialogFooter className="flex-col gap-2">
-            <Button variant="outline" onClick={() => setIsProductModalOpen(false)} className="w-full">
-              Continue Shopping
-            </Button>
-            {itemCount > 0 && (
-              <Link to="/checkout" className="w-full">
-                <Button className="w-full bg-orange-600 hover:bg-orange-700">
-                  Go to Checkout
+
+          <DialogFooter className="p-8 bg-white border-t border-slate-50">
+            <div className="flex flex-col w-full gap-4">
+              {itemCount > 0 && (
+                <div className="flex items-center justify-between px-6 py-4 bg-orange-50 rounded-2xl border border-orange-100 mb-2">
+                  <div className="flex items-center space-x-3">
+                    <ShoppingCart className="h-5 w-5 text-orange-600" />
+                    <span className="font-bold text-orange-900">{itemCount} items in cart</span>
+                  </div>
+                  <span className="font-black text-orange-600 text-lg">₹{totalAmount.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex gap-4">
+                <Button variant="outline" onClick={() => setIsProductModalOpen(false)} className="flex-1 rounded-2xl h-14 font-bold border-slate-100">
+                  Keep Shopping
                 </Button>
-              </Link>
-            )}
+                {itemCount > 0 && (
+                  <Link to="/checkout" className="flex-1">
+                    <Button className="w-full h-14 rounded-2xl bg-orange-600 hover:bg-orange-700 font-black shadow-xl shadow-orange-100 flex items-center justify-center">
+                      Secure Checkout <ChevronRight className="h-5 w-5 ml-2" />
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
+}
+
+// Missing icons for the categories list above
+function Droplets(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M7 16.3c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4z" />
+      <path d="M17 10.3c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4z" />
+      <path d="M14 20.3c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4z" />
+    </svg>
+  )
+}
+
+function Wheat(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 22s5-3 5-10" />
+      <path d="M7 12c1.4-1.4 3-2 5-2s3.6.6 5 2" />
+      <path d="M7 12c-1.4 1.4-2 3-2 5s.6 3.6 2 5" />
+      <path d="M12 10c1.4-1.4 3-2 5-2s3.6.6 5 2" />
+      <path d="M12 10c-1.4 1.4-2 3-2 5s.6 3.6 2 5" />
+      <path d="M17 8c1.4-1.4 3-2 5-2s3.6.6 5 2" />
+      <path d="M17 8c-1.4 1.4-2 3-2 5s.6 3.6 2 5" />
+    </svg>
+  )
 }

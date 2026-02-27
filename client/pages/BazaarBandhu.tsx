@@ -58,6 +58,8 @@ import {
   Target,
   Handshake,
   Activity,
+  FileText,
+  ShoppingBag,
   DollarSign,
   ArrowUp,
   ArrowDown,
@@ -75,25 +77,42 @@ import {
   LogIn,
   Building2,
   Clipboard,
-  MapPin as Location,
-  FileText,
   Check,
   Building,
   Mail,
   User,
-  Calendar as Cal,
   Banknote,
   LogOut,
-  LineChart,
   Utensils,
   ChevronRight,
   Search,
-  ShoppingBag,
-  ShoppingBag as ShoppingBagIcon
+  ShoppingBag as ShoppingBagIcon,
+  MapPin as Location,
+  Calendar as Cal,
+  LineChart as LucideLineChart
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { supportedLanguages, getTranslation, voiceCommands } from "@/lib/languages";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { useCart } from "@/context/CartContext";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar
+} from "recharts";
+import { supportedLanguages as allAvailableLanguages, getTranslation, voiceCommands } from "@/lib/languages";
 
 interface AIMessage {
   id: string;
@@ -151,6 +170,7 @@ interface PaymentMethod {
 }
 
 export default function BazaarBandhu() {
+  const navigate = useNavigate();
   const [selectedLanguage, setSelectedLanguage] = useState<string>('hi');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isVoiceActive, setIsVoiceActive] = useState(false);
@@ -166,6 +186,17 @@ export default function BazaarBandhu() {
   const [reviewText, setReviewText] = useState('');
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [showOrderDialog, setShowOrderDialog] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [newInventoryItem, setNewInventoryItem] = useState({
+    productName: '',
+    category: '',
+    quantity: '',
+    unit: 'kg',
+    costPrice: ''
+  });
+  const { addToCart, itemCount } = useCart();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [bazaarSearchQuery, setBazaarSearchQuery] = useState("");
@@ -173,17 +204,32 @@ export default function BazaarBandhu() {
 
   const [headerStatusKey, setHeaderStatusKey] = useState<string>('');
 
+  const [vendorData, setVendorData] = useState<any>(null);
+
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
     if (storedUser && token) {
       setIsLoggedIn(true);
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+
+      // Fetch full vendor profile if user is a vendor
+      if (parsedUser.userType === 'vendor') {
+        const fetchVendorProfile = async () => {
+          try {
+            const data = await api.get('/vendors/profile');
+            setVendorData(data);
+          } catch (error) {
+            console.error('Error fetching vendor profile:', error);
+          }
+        };
+        fetchVendorProfile();
+      }
     }
 
     // Fetch dynamic status line
-    fetch('/api/config/status-line')
-      .then(res => res.json())
+    api.get('/config/status-line')
       .then(data => {
         setHeaderStatusKey(data.statusKey);
       })
@@ -1069,7 +1115,7 @@ export default function BazaarBandhu() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {supportedLanguages.map(lang => (
+                  {allAvailableLanguages.map(lang => (
                     <SelectItem key={lang.code} value={lang.code}>
                       <span className="flex items-center space-x-2">
                         <span>{lang.flag}</span>
@@ -1100,7 +1146,7 @@ export default function BazaarBandhu() {
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full marketplace-floating">
                       <Avatar className="h-10 w-10 border-2 border-green-500">
                         <AvatarFallback className="bg-gradient-to-br from-green-500 to-emerald-600 text-white font-bold">
-                          {user?.fullName?.charAt(0) || 'U'}
+                          {user?.fullName?.charAt(0) || user?.name?.charAt(0) || 'U'}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
@@ -1108,14 +1154,17 @@ export default function BazaarBandhu() {
                   <DropdownMenuContent className="w-56" align="end" forceMount>
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{user?.fullName}</p>
-                        <p className="text-xs leading-none text-muted-foreground">
+                        <p className="text-sm font-bold leading-none">{user?.fullName}</p>
+                        {vendorData?.businessName && (
+                          <p className="text-xs font-medium text-green-600">{vendorData.businessName}</p>
+                        )}
+                        <p className="text-xs leading-none text-muted-foreground pt-1">
                           {user?.email}
                         </p>
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => window.location.href = '/profile'}>
+                    <DropdownMenuItem onClick={() => navigate('/profile')}>
                       <User className="mr-2 h-4 w-4" />
                       <span>View Profile</span>
                     </DropdownMenuItem>
@@ -1138,6 +1187,22 @@ export default function BazaarBandhu() {
                   {unreadNotifications.length > 0 && (
                     <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 text-white text-xs bounce-in">
                       {unreadNotifications.length}
+                    </Badge>
+                  )}
+                </Button>
+              </div>
+
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="relative marketplace-floating border-green-200 text-green-700 hover:bg-green-50"
+                  onClick={() => navigate('/checkout')}
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  {itemCount > 0 && (
+                    <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-green-600 text-white text-[10px] p-0 flex items-center justify-center bounce-in">
+                      {itemCount}
                     </Badge>
                   )}
                 </Button>
@@ -1262,7 +1327,7 @@ export default function BazaarBandhu() {
               {getTranslation('activeDeliveries', selectedLanguage)}
             </TabsTrigger>
             <TabsTrigger value="insights" className="glow-border">
-              <LineChart className="h-4 w-4 mr-2" />
+              <LucideLineChart className="h-4 w-4 mr-2" />
               {getTranslation('insights', selectedLanguage)}
             </TabsTrigger>
           </TabsList>
@@ -1389,44 +1454,67 @@ export default function BazaarBandhu() {
                         <Package className="h-4 w-4 text-blue-600" />
                         <span>Inventory Management</span>
                       </CardTitle>
-                      <Badge variant="outline" className="text-[10px] font-bold">12 Transfers Pending</Badge>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100"
+                          onClick={() => setShowInventoryModal(true)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                        <Badge variant="outline" className="text-[10px] font-bold">{vendorData?.currentInventory?.length || 0} Items</Badge>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="divide-y text-xs">
-                      {[
-                        { name: 'Onions', cat: 'Veg', qty: 5, unit: 'kg', status: 'low', val: '₹440' },
-                        { name: 'Potatoes', cat: 'Veg', qty: 150, unit: 'kg', status: 'good', val: '₹9,750' },
-                        { name: 'Mustard Oil', cat: 'Oils', qty: 45, unit: 'L', status: 'mid', val: '₹5,175' },
-                        { name: 'Turmeric', cat: 'Spices', qty: 12, unit: 'kg', status: 'good', val: '₹3,240' }
-                      ].map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 hover:bg-white/40 transition-colors">
-                          <div className="flex items-center space-x-3">
-                            <div className={cn(
-                              "w-1.5 h-8 rounded-full",
-                              item.status === 'good' ? "bg-green-500" :
-                                item.status === 'mid' ? "bg-yellow-500" : "bg-red-500"
-                            )} />
-                            <div>
-                              <p className="font-bold text-gray-900">{item.name}</p>
-                              <p className="text-[10px] text-gray-500">{item.cat} • {item.val}</p>
+                      {vendorData?.currentInventory && vendorData.currentInventory.length > 0 ? (
+                        vendorData.currentInventory.slice(0, 4).map((item: any, idx: number) => {
+                          const quantity = item.quantity || 0;
+                          const threshold = item.threshold || 5;
+                          const status = quantity <= (threshold / 2) ? 'crit' : quantity <= threshold ? 'low' : 'good';
+                          const statusColor = status === 'good' ? "bg-green-500" : status === 'low' ? "bg-yellow-500" : "bg-red-500";
+                          const textColor = status === 'good' ? "text-green-600" : status === 'low' ? "text-yellow-600" : "text-red-600";
+                          const statusText = status === 'good' ? 'In Stock' : status === 'low' ? 'Low' : 'Critical';
+
+                          return (
+                            <div key={idx} className="flex items-center justify-between p-3 hover:bg-white/40 transition-colors">
+                              <div className="flex items-center space-x-3">
+                                <div className={cn("w-1.5 h-8 rounded-full", statusColor)} />
+                                <div>
+                                  <p className="font-bold text-gray-900">{item.productName}</p>
+                                  <p className="text-[10px] text-gray-500">{item.category} • ₹{item.costPrice?.toLocaleString() || '0'}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold">{quantity}{item.unit}</p>
+                                <p className={cn("text-[10px] uppercase font-bold", textColor)}>{statusText}</p>
+                              </div>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold">{item.qty}{item.unit}</p>
-                            <p className={cn(
-                              "text-[10px] uppercase font-bold",
-                              item.status === 'good' ? "text-green-600" :
-                                item.status === 'mid' ? "text-yellow-600" : "text-red-600"
-                            )}>{item.status === 'good' ? 'In Stock' : item.status === 'mid' ? 'Low' : 'Critical'}</p>
-                          </div>
+                          );
+                        })
+                      ) : (
+                        <div className="p-8 text-center text-gray-400">
+                          <Package className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                          <p className="text-xs">No inventory items found</p>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="text-xs text-blue-600 h-auto p-0 mt-2"
+                            onClick={() => window.location.href = '/inventory'}
+                          >
+                            Add your first item
+                          </Button>
                         </div>
-                      ))}
+                      )}
                     </div>
                     <div className="p-3 bg-gray-50/50">
-                      <Button variant="ghost" size="sm" className="w-full text-xs text-blue-600 font-bold">
-                        View All Operations →
-                      </Button>
+                      <Link to="/inventory">
+                        <Button variant="ghost" size="sm" className="w-full text-xs text-blue-600 font-bold hover:bg-blue-50">
+                          View All Operations →
+                        </Button>
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>
@@ -1502,7 +1590,7 @@ export default function BazaarBandhu() {
 
                       <div className="flex items-center space-x-2">
                         <Badge className="bg-green-100 text-green-800">
-                          {supportedLanguages.find(l => l.code === selectedLanguage)?.nativeName}
+                          {allAvailableLanguages.find(l => l.code === selectedLanguage)?.nativeName}
                         </Badge>
                         <Button
                           variant={isListening ? "destructive" : "outline"}
@@ -1634,7 +1722,7 @@ export default function BazaarBandhu() {
                     </div>
 
                     <p className="text-xs text-gray-500 mt-2 text-center">
-                      🎤 Voice support in {supportedLanguages.find(l => l.code === selectedLanguage)?.nativeName} | Type or speak naturally
+                      🎤 Voice support in {allAvailableLanguages.find(l => l.code === selectedLanguage)?.nativeName} | Type or speak naturally
                     </p>
                   </div>
                 </Card>
@@ -1872,8 +1960,8 @@ export default function BazaarBandhu() {
                           size="sm"
                           className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:scale-105 transition-transform font-bold text-xs"
                           onClick={() => {
-                            const prod = products.find(p => p.supplier === supplier.name) || products[0];
-                            handleBuyClick(prod, 5);
+                            setSelectedSupplier(supplier);
+                            setShowOrderDialog(true);
                           }}
                         >
                           <ShoppingBag className="h-3 w-3 mr-1" />
@@ -1887,33 +1975,99 @@ export default function BazaarBandhu() {
           </TabsContent>
 
           <TabsContent value="insights" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Market Trends Card */}
-              <Card className="gradient-card marketplace-shadow">
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium flex items-center">
-                    <TrendingUp className="h-4 w-4 mr-2 text-green-600" />
-                    Market Trends
-                  </CardTitle>
+            {/* Odoo-like Charting Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="gradient-card marketplace-shadow overflow-hidden">
+                <CardHeader className="pb-0">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-bold flex items-center">
+                      <TrendingUp className="h-4 w-4 mr-2 text-green-600" />
+                      Spending Trend
+                    </CardTitle>
+                    <Badge className="bg-green-100 text-green-700 border-none text-[10px]">Monthly Analysis</Badge>
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center text-sm">
-                      <span>Onions</span>
-                      <Badge className="bg-green-100 text-green-800">↓ 12% Price Drop</Badge>
+                <CardContent className="h-[250px] p-6">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={[
+                      { name: 'Jan', value: 4500 },
+                      { name: 'Feb', value: 5200 },
+                      { name: 'Mar', value: 4800 },
+                      { name: 'Apr', value: 6100 },
+                      { name: 'May', value: 5900 },
+                      { name: 'Jun', value: 6500 },
+                    ]}>
+                      <defs>
+                        <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                      />
+                      <Area type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card className="gradient-card marketplace-shadow overflow-hidden">
+                <CardHeader className="pb-0">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-bold flex items-center">
+                      <Package className="h-4 w-4 mr-2 text-blue-600" />
+                      Inventory Composition
+                    </CardTitle>
+                    <Badge className="bg-blue-100 text-blue-700 border-none text-[10px]">Stock Health</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="h-[250px] p-6 flex items-center">
+                  <ResponsiveContainer width="60%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'High', value: 45, color: '#10b981' },
+                          { name: 'Mid', value: 30, color: '#3b82f6' },
+                          { name: 'Low', value: 25, color: '#ef4444' },
+                        ]}
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {[0, 1, 2].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#ef4444'][index]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex-1 space-y-3 pl-4">
+                    <div className="flex items-center justify-between font-medium">
+                      <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-green-500 mr-2" /> <span className="text-[10px]">In Stock</span></div>
+                      <span className="text-xs">45%</span>
                     </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span>Tomatoes</span>
-                      <Badge className="bg-red-100 text-red-800">↑ 8% Price Hike</Badge>
+                    <div className="flex items-center justify-between font-medium">
+                      <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-blue-500 mr-2" /> <span className="text-[10px]">Moderate</span></div>
+                      <span className="text-xs">30%</span>
                     </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span>Potatoes</span>
-                      <Badge className="bg-blue-100 text-blue-800">Stable</Badge>
+                    <div className="flex items-center justify-between font-medium">
+                      <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-red-500 mr-2" /> <span className="text-[10px]">Critical</span></div>
+                      <span className="text-xs">25%</span>
+                    </div>
+                    <div className="pt-2 border-t mt-2">
+                      <p className="text-[10px] text-gray-500 italic">Target: 95% + Health</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Financial Summary Card */}
               <Card className="gradient-card marketplace-shadow">
                 <CardHeader>
@@ -1923,22 +2077,30 @@ export default function BazaarBandhu() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-xs text-gray-500">Total Spent</span>
-                    <span className="text-sm font-bold">₹12,450</span>
+                  <div className="grid grid-cols-2 gap-4 pb-2">
+                    <div className="p-3 bg-blue-50 rounded-xl">
+                      <p className="text-[10px] text-blue-600 font-bold uppercase">Total Spent</p>
+                      <p className="text-lg font-black text-slate-900">₹{vendorData?.totalSpent?.toLocaleString() || '12,450'}</p>
+                    </div>
+                    <div className="p-3 bg-green-50 rounded-xl">
+                      <p className="text-[10px] text-green-600 font-bold uppercase">AI Savings</p>
+                      <p className="text-lg font-black text-green-700">₹{vendorData?.totalSavings?.toLocaleString() || '1,840'}</p>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-xs text-gray-500">Total Saved (AI)</span>
-                    <span className="text-sm font-bold text-green-600">₹1,840</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Credit Balance</span>
-                    <span className="text-sm font-bold text-orange-600">₹4,200</span>
+                  <div className="p-3 bg-orange-50 rounded-xl mb-4">
+                    <p className="text-[10px] text-orange-600 font-bold uppercase tracking-wider">Credit Limit Status</p>
+                    <div className="flex justify-between items-end mt-1">
+                      <p className="text-lg font-black text-slate-900">₹{vendorData?.currentCredit?.toLocaleString() || '4,200'}</p>
+                      <p className="text-[10px] font-bold text-orange-700">84% Used</p>
+                    </div>
+                    <div className="h-1.5 w-full bg-orange-200/50 rounded-full mt-2 overflow-hidden">
+                      <div className="h-full bg-orange-500 w-[84%]" />
+                    </div>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full text-xs font-bold glow-border"
+                    className="w-full text-xs font-bold glow-border h-11"
                     onClick={handleDownloadReport}
                   >
                     <FileText className="h-3 w-3 mr-1" />
@@ -1981,7 +2143,7 @@ export default function BazaarBandhu() {
               </Card>
 
               {/* AI Sales Forecast Card */}
-              <Card className="gradient-card marketplace-shadow border-dashed border-2 border-green-200 lg:col-span-3">
+              <Card className="gradient-card marketplace-shadow border-dashed border-2 border-green-200">
                 <CardContent className="p-6">
                   <div className="flex items-start space-x-4">
                     <div className="bg-green-100 p-3 rounded-2xl">
@@ -2371,40 +2533,25 @@ export default function BazaarBandhu() {
                   const payload = {
                     ...supplierForm,
                     userType: 'supplier',
-                    fullName: supplierForm.fullName, // already in form
-                    email: supplierForm.email,
-                    password: supplierForm.password,
-                    phone: supplierForm.phone,
-                    businessName: supplierForm.businessName,
                     addressDetails: {
-                      street: supplierForm.address,
-                      city: 'City', // placeholder if not in form
+                      street: supplierForm.address || 'Street not specified',
+                      city: 'City',
                       state: 'State',
-                      pincode: '000000'
+                      pincode: supplierForm.pincode || '000000'
                     }
                   };
 
-                  const response = await fetch('http://localhost:5004/api/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                  });
-
-                  const data = await response.json();
-
-                  if (!response.ok) {
-                    throw new Error(data.error || 'Supplier registration failed');
-                  }
+                  const data = await api.post('/auth/register', payload);
 
                   localStorage.setItem('token', data.token);
                   localStorage.setItem('user', JSON.stringify(data.user));
 
                   setShowSupplierForm(false);
-                  alert('🎉 Supplier registration successful!\n\nWelcome to BazaarBandhu supplier network!');
-                  window.location.reload();
-                } catch (error) {
+                  toast.success('🎉 Supplier registration successful! Welcome to BazaarBandhu supplier network!');
+                  setTimeout(() => window.location.reload(), 1500);
+                } catch (error: any) {
                   console.error('Supplier Auth Error:', error);
-                  alert(`❌ Error: ${error.message}`);
+                  toast.error(`❌ Error: ${error.message}`);
                 }
               }}
             >
@@ -2433,35 +2580,39 @@ export default function BazaarBandhu() {
             onSubmit={async (e) => {
               e.preventDefault();
               try {
-                const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+                const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
                 const payload = {
                   ...authForm,
                   userType: authMode === 'signup' ? userType : undefined
                 };
 
-                const response = await fetch(`http://localhost:5004${endpoint}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(payload)
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                  throw new Error(data.error || 'Authentication failed');
-                }
+                const data = await api.post(endpoint, payload);
 
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
 
-                alert(`🎉 ${authMode === 'login' ? 'Login' : 'Signup'} successful!\n\nWelcome to BazaarBandhu, ${data.user.fullName}!`);
-                setShowAuthModal(false);
-                // Update user state if needed (e.g. setLoggedInUser(data.user))
-                window.location.reload(); // Simple way to refresh state across components
+                // Update local state immediately for better UX
+                setIsLoggedIn(true);
+                setUser(data.user);
 
-              } catch (error) {
+                if (data.user.userType === 'vendor') {
+                  const vData = await api.get('/vendors/profile');
+                  setVendorData(vData);
+                }
+
+                toast.success(`🎉 ${authMode === 'login' ? 'Login' : 'Signup'} successful! Welcome to BazaarBandhu, ${data.user.fullName}!`);
+                setShowAuthModal(false);
+
+                // If not already on appropriate dashboard, redirect
+                if (data.user.userType === 'supplier') {
+                  navigate('/supplier-dashboard');
+                } else if (window.location.pathname !== '/dashboard') {
+                  navigate('/dashboard');
+                }
+
+              } catch (error: any) {
                 console.error('Auth Error:', error);
-                alert(`❌ Error: ${error.message}`);
+                toast.error(`❌ Error: ${error.message}`);
               }
             }}
             className="space-y-4"
@@ -2637,6 +2788,201 @@ export default function BazaarBandhu() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      {/* Add Inventory Modal */}
+      <Dialog open={showInventoryModal} onOpenChange={setShowInventoryModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Package className="h-5 w-5 text-blue-600" />
+              <span>Add to Inventory</span>
+            </DialogTitle>
+            <DialogDescription>
+              Update your shop's stock levels to get better AI insights.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Product Name</Label>
+              <Input
+                placeholder="e.g. Potatoes"
+                value={newInventoryItem.productName}
+                onChange={e => setNewInventoryItem({ ...newInventoryItem, productName: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Quantity</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={newInventoryItem.quantity}
+                  onChange={e => setNewInventoryItem({ ...newInventoryItem, quantity: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Unit</Label>
+                <Select
+                  value={newInventoryItem.unit}
+                  onValueChange={v => setNewInventoryItem({ ...newInventoryItem, unit: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="kg">kg</SelectItem>
+                    <SelectItem value="liter">liter</SelectItem>
+                    <SelectItem value="pack">pack</SelectItem>
+                    <SelectItem value="unit">unit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Cost Price (₹)</Label>
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={newInventoryItem.costPrice}
+                onChange={e => setNewInventoryItem({ ...newInventoryItem, costPrice: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Category</Label>
+              <Input
+                placeholder="e.g. Vegetables"
+                value={newInventoryItem.category}
+                onChange={e => setNewInventoryItem({ ...newInventoryItem, category: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowInventoryModal(false)}>Cancel</Button>
+            <Button className="bg-blue-600" onClick={async () => {
+              try {
+                if (!newInventoryItem.productName || !newInventoryItem.quantity || !newInventoryItem.costPrice || !newInventoryItem.category) {
+                  toast.error("Please fill all required fields including Category");
+                  return;
+                }
+                const payload = {
+                  product: {
+                    ...newInventoryItem,
+                    quantity: Number(newInventoryItem.quantity),
+                    costPrice: Number(newInventoryItem.costPrice)
+                  }
+                };
+                await api.patch('/vendors/inventory', payload);
+                toast.success("Inventory updated successfully!");
+                setShowInventoryModal(false);
+                const data = await api.get('/vendors/profile');
+                setVendorData(data);
+                setNewInventoryItem({ productName: '', category: '', quantity: '', unit: 'kg', costPrice: '' });
+              } catch (error: any) {
+                toast.error(`Error: ${error.message}`);
+              }
+            }}>
+              Update Inventory
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Supplier Order Dialog */}
+      <Dialog open={showOrderDialog} onOpenChange={setShowOrderDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <ShoppingBag className="h-5 w-5 text-green-600" />
+              <span>Order from {selectedSupplier?.name}</span>
+            </DialogTitle>
+            <DialogDescription>
+              Select items and quantities to add to your cart.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+            {products.filter(p => p.supplier === selectedSupplier?.name).length > 0 ? (
+              products.filter(p => p.supplier === selectedSupplier?.name).map((product, idx) => (
+                <Card key={idx} className="border-green-100 overflow-hidden">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <span className="text-2xl">{product.image}</span>
+                      <div>
+                        <p className="font-bold">{product.name}</p>
+                        <p className="text-xs text-green-600 font-bold">₹{product.price}/{product.unit}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        type="number"
+                        defaultValue="1"
+                        id={`qty-${product.id}`}
+                        className="w-20"
+                        min="1"
+                      />
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        onClick={() => {
+                          const qtyInput = document.getElementById(`qty-${product.id}`) as HTMLInputElement;
+                          const qty = parseInt(qtyInput.value) || 1;
+                          addToCart({
+                            id: product.id,
+                            name: product.name,
+                            price: product.price,
+                            quantity: qty,
+                            unit: product.unit,
+                            supplierId: selectedSupplier.id.toString(),
+                            supplierName: selectedSupplier.name
+                          });
+                          toast.success(`Added ${qty}${product.unit} ${product.name} to cart`);
+                        }}
+                      >
+                        Add to Cart
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="col-span-2 text-center py-8 text-gray-500 italic">
+                No specific products listed for this supplier yet.
+                <Button variant="link" className="block mx-auto mt-2" onClick={() => {
+                  addToCart({
+                    id: 'gen-1',
+                    name: 'General Supplies',
+                    price: selectedSupplier?.minOrder || 500,
+                    quantity: 1,
+                    unit: 'lot',
+                    supplierId: selectedSupplier?.id?.toString() || '0',
+                    supplierName: selectedSupplier?.name || 'Supplier'
+                  });
+                  toast.success("Added minimum order lot to cart");
+                }}>
+                  Add Minimum Order Lot
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex justify-between items-center sm:justify-between">
+            <p className="text-sm font-medium text-gray-500 italic">
+              Min Order: ₹{selectedSupplier?.minOrder}
+            </p>
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={() => setShowOrderDialog(false)}>Close</Button>
+              <Button className="bg-green-600" onClick={() => {
+                setShowOrderDialog(false);
+                setActiveTab('bazaar'); // Or navigate to cart if there was a cart tab
+                toast.info("Items added! You can view them in the cart (Checkout page).");
+              }}>
+                Done Picking
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div >
   );
 }
