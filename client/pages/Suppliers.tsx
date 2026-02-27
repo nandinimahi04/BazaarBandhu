@@ -83,96 +83,96 @@ export default function Suppliers() {
   };
 
   const categories = [
-    { id: "all", name: "सभी", count: 24, icon: <Package className="w-4 h-4 mr-1" /> },
-    { id: "vegetables", name: "सब्जियां", count: 8, icon: <Tag className="w-4 h-4 mr-1" /> },
-    { id: "spices", name: "मसाले", count: 6, icon: <Zap className="w-4 h-4 mr-1" /> },
-    { id: "oil", name: "तेल", count: 4, icon: <Droplets className="w-4 h-4 mr-1" /> },
-    { id: "grains", name: "अनाज", count: 6, icon: <Wheat className="w-4 h-4 mr-1" /> }
+    { id: "all", name: "All", count: 24, icon: <Package className="w-4 h-4 mr-1" /> },
+    { id: "vegetables", name: "Vegetables", count: 8, icon: <Tag className="w-4 h-4 mr-1" /> },
+    { id: "spices", name: "Spices", count: 6, icon: <Zap className="w-4 h-4 mr-1" /> },
+    { id: "oil", name: "Oil", count: 4, icon: <Droplets className="w-4 h-4 mr-1" /> },
+    { id: "grains", name: "Grains", count: 6, icon: <Wheat className="w-4 h-4 mr-1" /> }
   ];
 
   const suppliers = [
     {
       id: "69a0e6891822b72108f2b813",
-      name: "रवि ट्रेडर्स (Ravi Traders)",
-      owner: "रवि भाई शर्मा",
+      name: "Ravi Traders",
+      owner: "Ravi Bhai Sharma",
       rating: 4.8,
       reviews: 156,
       distance: "1.2 km",
       verified: true,
-      location: "सोलापुर मुख्य मंडी",
+      location: "Solapur Main Mandi",
       phone: "+91 98765 43210",
       category: "vegetables",
-      speciality: ["प्याज", "टमाटर", "आलू"],
+      speciality: ["Onion", "Tomato", "Potato"],
       pricing: "wholesale",
-      deliveryTime: "2-3 घंटे",
+      deliveryTime: "2-3 hours",
       minOrder: 500,
-      currentOffers: ["बल्क डिस्काउंट 10%", "मुफ्त डिलीवरी"],
+      currentOffers: ["Bulk Discount 10%", "Free Delivery"],
       totalOrders: 89,
       groupOrders: 45,
-      lastDelivery: "आज सुबह 9:30",
+      lastDelivery: "Today Morning 9:30",
       trustScore: 92
     },
     {
       id: "67be00000000000000000002",
-      name: "महाराज होलसेल",
-      owner: "सुनील महाराज",
+      name: "Maharaj Wholesale",
+      owner: "Sunil Maharaj",
       rating: 4.6,
       reviews: 203,
       distance: "2.1 km",
       verified: true,
-      location: "न्यू मार्केट एरिया",
+      location: "New Market Area",
       phone: "+91 87654 32109",
       category: "spices",
-      speciality: ["हल्दी", "लाल मिर्च", "धनिया"],
+      speciality: ["Turmeric", "Red Chili", "Coriander"],
       pricing: "competitive",
-      deliveryTime: "3-4 घंटे",
+      deliveryTime: "3-4 hours",
       minOrder: 300,
-      currentOffers: ["नए ग्राहक को 15% छूट"],
+      currentOffers: ["15% Off for New Customers"],
       totalOrders: 67,
       groupOrders: 28,
-      lastDelivery: "कल शाम 5:00",
+      lastDelivery: "Yesterday Evening 5:00",
       trustScore: 88
     },
     {
       id: "67be00000000000000000003",
-      name: "फ्रेश मंडी",
-      owner: "अजय कुमार",
+      name: "Fresh Mandi",
+      owner: "Ajay Kumar",
       rating: 4.4,
       reviews: 98,
       distance: "3.5 km",
       verified: false,
-      location: "किसान मार्केट",
+      location: "Kisan Market",
       phone: "+91 76543 21098",
       category: "vegetables",
-      speciality: ["हरी सब्जी", "फल"],
+      speciality: ["Green Vegetables", "Fruits"],
       pricing: "budget",
-      deliveryTime: "4-5 घंटे",
+      deliveryTime: "4-5 hours",
       minOrder: 200,
-      currentOffers: ["सीजनल सब्जी स्पेशल"],
+      currentOffers: ["Seasonal Veg Special"],
       totalOrders: 34,
       groupOrders: 12,
-      lastDelivery: "2 दिन पहले",
+      lastDelivery: "2 Days Ago",
       trustScore: 75
     },
     {
       id: "67be00000000000000000004",
-      name: "गुप्ता ऑयल मिल्स",
-      owner: "राजेश गुप्ता",
+      name: "Gupta Oil Mills",
+      owner: "Rajesh Gupta",
       rating: 4.9,
       reviews: 234,
       distance: "1.8 km",
       verified: true,
-      location: "इंडस्ट्रियल एरिया",
+      location: "Industrial Area",
       phone: "+91 65432 10987",
       category: "oil",
-      speciality: ["सरसों का तेल", "सूरजमुखी तेल"],
+      speciality: ["Mustard Oil", "Sunflower Oil"],
       pricing: "premium",
-      deliveryTime: "1-2 घंटे",
+      deliveryTime: "1-2 hours",
       minOrder: 1000,
-      currentOffers: ["कैश पेमेंट पर 5% छूट"],
+      currentOffers: ["5% Off on Cash Payment"],
       totalOrders: 123,
       groupOrders: 78,
-      lastDelivery: "आज दोपहर 2:00",
+      lastDelivery: "Today Afternoon 2:00",
       trustScore: 95
     }
   ];
@@ -565,7 +565,9 @@ export default function Suppliers() {
                       </div>
                     </div>
                   </div>
-                ))}
+                );
+              })
+            )}
           </div>
 
           <DialogFooter className="p-8 bg-white border-t border-slate-50">

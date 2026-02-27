@@ -122,6 +122,21 @@ router.post('/auth/register', async (req: any, res: any) => {
         };
 
         if (userType === 'vendor') {
+            const isPaniPuri = (businessName || stallName || '').toLowerCase().includes('pani puri') ||
+                (businessName || stallName || '').toLowerCase().includes('panipuri') ||
+                (stallType === 'Street Food' || stallType === 'street_food' || stallType === 'पानी पूरी स्टॉल');
+
+            const defaultInventory = isPaniPuri ? [
+                { productName: 'आलू (Potatoes)', category: 'Vegetables', quantity: 20, unit: 'kg', costPrice: 25 },
+                { productName: 'पूरी (Puris)', category: 'Grains', quantity: 1000, unit: 'pcs', costPrice: 0.5 },
+                { productName: 'चना (Chickpeas)', category: 'Grains', quantity: 10, unit: 'kg', costPrice: 80 },
+                { productName: 'इमली (Tamarind)', category: 'Spices', quantity: 5, unit: 'kg', costPrice: 120 },
+                { productName: 'पुदीना (Mint)', category: 'Vegetables', quantity: 2, unit: 'kg', costPrice: 40 },
+                { productName: 'मिर्च (Green Chilies)', category: 'Vegetables', quantity: 1, unit: 'kg', costPrice: 60 },
+                { productName: 'तेल (Oil)', category: 'Oil', quantity: 15, unit: 'Litre', costPrice: 140 },
+                { productName: 'मसाला (Chaat Masala)', category: 'Spices', quantity: 2, unit: 'kg', costPrice: 250 }
+            ] : [];
+
             newUser = new Vendor({
                 fullName,
                 email,
@@ -131,7 +146,8 @@ router.post('/auth/register', async (req: any, res: any) => {
                 businessName: businessName || stallName || 'My Vendor Shop',
                 address: finalAddress,
                 location: finalLocation,
-                businessCategory: businessCategory || stallType || 'street_food'
+                businessCategory: businessCategory || stallType || 'street_food',
+                currentInventory: defaultInventory
             });
         } else if (userType === 'supplier') {
             newUser = new Supplier({

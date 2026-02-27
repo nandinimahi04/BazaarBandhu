@@ -79,7 +79,7 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error("Error loading dashboard data:", error);
-      toast.error("डैशबोर्ड डेटा लोड करने में विफल");
+      toast.error("Failed to load dashboard data");
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +87,7 @@ export default function Dashboard() {
 
   const handleAddItem = async () => {
     if (!newItem.productName) {
-      toast.error("कृपया उत्पाद का नाम दर्ज करें");
+      toast.error("Please enter product name");
       return;
     }
     try {
@@ -95,7 +95,7 @@ export default function Dashboard() {
       setInventoryItems(data.inventory);
       setIsAddInventoryOpen(false);
       setNewItem({ productName: "", quantity: 0, unit: "kg", category: "Vegetables", threshold: 5 });
-      toast.success(`${newItem.productName} जोड़ा गया`);
+      toast.success(`${newItem.productName} added`);
 
       // Update low stock count in stats
       setStats(prev => ({
@@ -103,7 +103,7 @@ export default function Dashboard() {
         lowStockItems: data.inventory.filter((item: any) => item.quantity <= (item.threshold || 5)).length
       }));
     } catch (error: any) {
-      toast.error(error.message || "आइटम जोड़ने में विफल");
+      toast.error(error.message || "Failed to add item");
     }
   };
 
@@ -132,23 +132,23 @@ export default function Dashboard() {
     try {
       const data = await api.delete(`/vendors/inventory/${productName}`);
       setInventoryItems(data.inventory);
-      toast.success("आइटम हटा दिया गया");
+      toast.success("Item removed");
 
       setStats(prev => ({
         ...prev,
         lowStockItems: data.inventory.filter((item: any) => item.quantity <= (item.threshold || 5)).length
       }));
     } catch (error: any) {
-      toast.error("हटाने में विफल");
+      toast.error("Failed to remove");
     }
   };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    const lang = vendorData?.aiAssistant?.preferredLanguage || 'hi';
+    const lang = vendorData?.aiAssistant?.preferredLanguage || 'en';
 
     const greetings: Record<string, any> = {
-      hi: hour < 12 ? 'सुप्रभात' : hour < 17 ? 'नमस्ते' : 'शुभ संध्या',
+      hi: hour < 12 ? 'Good Morning' : hour < 17 ? 'Namaste' : 'Good Evening',
       en: hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening',
     };
 
@@ -221,7 +221,7 @@ export default function Dashboard() {
             <p className="text-gray-600 text-lg">
               {isEnglish
                 ? "Here's what's happening with your street food business today"
-                : "आज आपके स्ट्रीट फूड बिजनेस में क्या हो रहा है"
+                : "Here's what's happening with your street food business today"
               }
             </p>
             <div className="flex items-center gap-2 mt-1">
@@ -241,7 +241,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  {isEnglish ? 'Total Orders' : 'कुल ऑर्डर'}
+                  {isEnglish ? 'Total Orders' : 'Total Orders'}
                 </p>
                 <p className="text-3xl font-bold gradient-text">{stats.totalOrders}</p>
               </div>
@@ -257,7 +257,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  {isEnglish ? 'Monthly Spent' : 'मासिक खर्च'}
+                  {isEnglish ? 'Monthly Spent' : 'Monthly Spent'}
                 </p>
                 <p className="text-3xl font-bold gradient-text">₹{stats.monthlySpent.toLocaleString()}</p>
               </div>
@@ -273,7 +273,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  {isEnglish ? 'Low Stock Items' : 'कम स्टॉक'}
+                  {isEnglish ? 'Low Stock Items' : 'Low Stock Items'}
                 </p>
                 <p className="text-3xl font-bold text-orange-600">{stats.lowStockItems}</p>
               </div>
@@ -289,7 +289,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  {isEnglish ? 'Active Suppliers' : 'सक्रिय सप्लायर'}
+                  {isEnglish ? 'Active Suppliers' : 'Active Suppliers'}
                 </p>
                 <p className="text-3xl font-bold gradient-text">{stats.activeSuppliers}</p>
               </div>
@@ -307,7 +307,7 @@ export default function Dashboard() {
           <Button className="w-full h-24 clay-button flex flex-col items-center justify-center space-y-2">
             <MessageCircle className="w-8 h-8" />
             <span className="text-sm font-medium">
-              {isEnglish ? 'AI Assistant' : 'AI सहायक'}
+              {isEnglish ? 'AI Assistant' : 'AI Assistant'}
             </span>
           </Button>
         </Link>
@@ -316,7 +316,7 @@ export default function Dashboard() {
           <Button className="w-full h-24 clay-button flex flex-col items-center justify-center space-y-2">
             <Store className="w-8 h-8" />
             <span className="text-sm font-medium">
-              {isEnglish ? 'Browse Markets' : 'मार्केट देखें'}
+              {isEnglish ? 'Browse Markets' : 'Browse Markets'}
             </span>
           </Button>
         </Link>
@@ -327,7 +327,7 @@ export default function Dashboard() {
         >
           <Package className="w-8 h-8" />
           <span className="text-sm font-medium">
-            {isEnglish ? 'Check Storage' : 'स्टोरेज देखें'}
+            {isEnglish ? 'Check Storage' : 'Check Storage'}
           </span>
         </Button>
 
@@ -335,7 +335,7 @@ export default function Dashboard() {
           <Button className="w-full h-24 clay-button flex flex-col items-center justify-center space-y-2">
             <Clock className="w-8 h-8" />
             <span className="text-sm font-medium">
-              {isEnglish ? 'My Orders' : 'मेरे ऑर्डर'}
+              {isEnglish ? 'My Orders' : 'My Orders'}
             </span>
           </Button>
         </Link>
@@ -348,7 +348,7 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle className="gradient-text flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" />
-              {isEnglish ? 'Recent Orders' : 'हाल के ऑर्डर'}
+              {isEnglish ? 'Recent Orders' : 'Recent Orders'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -365,8 +365,8 @@ export default function Dashboard() {
                     <div className="text-right">
                       <p className="font-bold text-lg">₹{order.totalAmount}</p>
                       <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                          order.status === 'dispatched' ? 'bg-blue-100 text-blue-800' :
-                            'bg-yellow-100 text-yellow-800'
+                        order.status === 'dispatched' ? 'bg-blue-100 text-blue-800' :
+                          'bg-yellow-100 text-yellow-800'
                         }`}>
                         {order.status}
                       </span>
@@ -377,7 +377,7 @@ export default function Dashboard() {
             ) : (
               <div className="text-center text-gray-500 py-8">
                 <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>{isEnglish ? 'No orders yet. Start shopping!' : 'अभी तक कोई ऑर्डर नहीं। खरीदारी शुरू करें!'}</p>
+                <p>{isEnglish ? 'No orders yet. Start shopping!' : 'No orders yet. Start shopping!'}</p>
               </div>
             )}
           </CardContent>
@@ -388,7 +388,7 @@ export default function Dashboard() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="gradient-text flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-orange-500" />
-              {isEnglish ? 'Low Stock Alerts' : 'स्टॉक अलर्ट'}
+              {isEnglish ? 'Low Stock Alerts' : 'Low Stock Alerts'}
             </CardTitle>
             <Badge variant="outline" className="text-orange-600 border-orange-200">
               {lowStockAlerts.length} Issues
@@ -412,7 +412,7 @@ export default function Dashboard() {
                       </Button>
                       <Link to="/suppliers">
                         <Button size="sm" className="clay-button h-8">
-                          {isEnglish ? 'Order' : 'ऑर्डर'}
+                          {isEnglish ? 'Order' : 'Order'}
                         </Button>
                       </Link>
                     </div>
@@ -422,7 +422,7 @@ export default function Dashboard() {
             ) : (
               <div className="text-center text-gray-500 py-8">
                 <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-green-500 opacity-50" />
-                <p>{isEnglish ? 'All items are well stocked!' : 'सभी चीजों का स्टॉक भरपूर है!'}</p>
+                <p>{isEnglish ? 'All items are well stocked!' : 'All items are well stocked!'}</p>
               </div>
             )}
           </CardContent>
@@ -491,35 +491,67 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {inventoryItems.map((item, idx) => (
-              <div key={idx} className="p-4 bg-white/60 rounded-2xl border border-slate-100 flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-slate-900">{item.productName}</p>
-                  <p className={`text-xl font-black ${item.quantity <= (item.threshold || 5) ? 'text-red-500' : 'text-slate-900'}`}>
-                    {item.quantity} {item.unit}
-                  </p>
-                  <Badge variant="secondary" className="mt-1 text-[10px]">{item.category}</Badge>
-                </div>
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center space-x-1">
-                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateStock(item.productName, -1)}>
-                      <Minus className="w-4 h-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateStock(item.productName, 1)}>
-                      <Plus className="w-4 h-4" />
+            {inventoryItems.length > 0 ? (
+              inventoryItems.map((item, idx) => (
+                <div key={idx} className="p-4 bg-white/60 rounded-2xl border border-slate-100 flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-slate-900">{item.productName}</p>
+                    <p className={`text-xl font-black ${item.quantity <= (item.threshold || 5) ? 'text-red-500' : 'text-slate-900'}`}>
+                      {item.quantity} {item.unit}
+                    </p>
+                    <Badge variant="secondary" className="mt-1 text-[10px]">{item.category}</Badge>
+                  </div>
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center space-x-1">
+                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateStock(item.productName, -1)}>
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => updateStock(item.productName, 1)}>
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-[10px] text-red-400 hover:text-red-600"
+                      onClick={() => deleteItem(item.productName)}
+                    >
+                      Delete Item
                     </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-[10px] text-red-400 hover:text-red-600"
-                    onClick={() => deleteItem(item.productName)}
-                  >
-                    Delete Item
-                  </Button>
                 </div>
+              ))
+            ) : (
+              <div className="col-span-full py-12 text-center bg-white/40 rounded-3xl border border-dashed border-slate-300">
+                <Package className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+                <h3 className="text-xl font-bold text-slate-700">No Inventory Data</h3>
+                <p className="text-slate-500 mb-6">Add your first item or use the button below to load Pani Puri template.</p>
+                <Button
+                  className="clay-button text-white px-8"
+                  onClick={async () => {
+                    const defaults = [
+                      { productName: 'आलू (Potatoes)', category: 'Vegetables', quantity: 20, unit: 'kg', threshold: 5 },
+                      { productName: 'पूरी (Puris)', category: 'Grains', quantity: 1000, unit: 'pcs', threshold: 100 },
+                      { productName: 'चना (Chickpeas)', category: 'Grains', quantity: 10, unit: 'kg', threshold: 2 },
+                      { productName: 'इमली (Tamarind)', category: 'Spices', quantity: 5, unit: 'kg', threshold: 1 },
+                      { productName: 'पुदीना (Mint)', category: 'Vegetables', quantity: 2, unit: 'kg', threshold: 0.5 },
+                      { productName: 'तेल (Oil)', category: 'Oil', quantity: 15, unit: 'Litre', threshold: 2 }
+                    ];
+                    try {
+                      // Use the last item to update the whole inventory since our API patch supports singular product or full inventory
+                      // Wait, looking at routes/api.ts:L673, it supports { currentInventory: [...] }
+                      await api.patch("/vendors/inventory", { currentInventory: defaults });
+                      setInventoryItems(defaults);
+                      toast.success("Pani Puri template loaded successfully!");
+                    } catch (error) {
+                      toast.error("Failed to load template");
+                    }
+                  }}
+                >
+                  <TrendingUp className="w-4 h-4 mr-2" /> Load Pani Puri Template
+                </Button>
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>

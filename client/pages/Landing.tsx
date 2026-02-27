@@ -83,8 +83,8 @@ export default function Landing() {
                     <span className="text-sm font-semibold text-orange-800 tracking-wide uppercase">AI-Powered Marketplace</span>
                 </div>
                 <h1 className="text-6xl md:text-7xl font-extrabold text-gray-900 mb-8 leading-[1.1] tracking-tight">
-                    आपका विश्वसनीय <span className="text-orange-600">बाज़ार साथी</span><br />
-                    <span className="text-gray-400">Your Trusted Marketplace Partner</span>
+                    Your Trusted <span className="text-orange-600">Market Partner</span><br />
+                    <span className="text-gray-400">Supporting your business growth</span>
                 </h1>
                 <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto leading-relaxed">
                     Empowering Indian street food vendors with AI voice shopping, group buying savings,

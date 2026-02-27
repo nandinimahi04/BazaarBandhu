@@ -41,7 +41,7 @@ export default function Register() {
     businessCategory: "",
     location: "",
     address: "",
-    language: "hindi",
+    language: "english",
     dailyBudget: "",
     primaryItems: [],
     // Supplier specific
@@ -78,14 +78,15 @@ export default function Register() {
   const progress = (currentStep / totalSteps) * 100;
 
   const stallTypes = [
-    "वडा पाव स्टॉल",
-    "चाट काउंटर",
-    "डोसा पॉइंट",
-    "पाव भाजी",
-    "समोसा स्टॉल",
-    "चाय स्टॉल",
-    "फ्रूट जूस",
-    "अन्य"
+    "Pani Puri Stall",
+    "Vada Pav Stall",
+    "Chaat Counter",
+    "Dosa Point",
+    "Pav Bhaji",
+    "Samosa Stall",
+    "Tea Stall",
+    "Fruit Juice",
+    "Other"
   ];
 
   const categories = [
@@ -172,7 +173,7 @@ export default function Register() {
         } : {
           businessCategory: 'street_food',
           stallName: formData.businessName || formData.name,
-          stallType: 'street_food',
+          stallType: formData.businessCategory || 'street_food',
           verificationDocument: verificationDocumentUrl
         })
       };

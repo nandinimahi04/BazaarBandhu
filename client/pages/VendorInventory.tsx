@@ -67,7 +67,7 @@ export default function VendorInventory() {
             setInventory(data.currentInventory || []);
         } catch (error) {
             console.error("Fetch inventory error:", error);
-            toast.error("इंवेंट्री लोड करने में विफल");
+            toast.error("Failed to load inventory");
         } finally {
             setIsLoading(false);
         }
@@ -75,7 +75,7 @@ export default function VendorInventory() {
 
     const handleSaveItem = async () => {
         if (!formData.productName) {
-            toast.error("उत्पाद का नाम आवश्यक है");
+            toast.error("Product name is required");
             return;
         }
 
@@ -94,22 +94,22 @@ export default function VendorInventory() {
             setIsAddDialogOpen(false);
             setEditingItem(null);
             setFormData({ productName: "", category: "Vegetables", quantity: 0, unit: "kg", costPrice: 0 });
-            toast.success(editingItem ? "इंवेंट्री अपडेट की गई" : "नया आइटम जोड़ा गया");
+            toast.success(editingItem ? "Inventory updated" : "New item added");
         } catch (error) {
-            toast.error("सहेजने में विफल");
+            toast.error("Failed to save");
         }
     };
 
     const handleDeleteItem = async (id: string) => {
-        if (!confirm("क्या आप वाकई इस आइटम को हटाना चाहते हैं?")) return;
+        if (!confirm("Are you sure you want to remove this item?")) return;
 
         try {
             const updatedInventory = inventory.filter(item => item._id !== id);
             await api.patch("/vendors/inventory", { currentInventory: updatedInventory });
             setInventory(updatedInventory);
-            toast.success("आइटम हटा दिया गया");
+            toast.success("Item removed");
         } catch (error) {
-            toast.error("हटाने में विफल");
+            toast.error("Failed to remove");
         }
     };
 
@@ -297,11 +297,38 @@ export default function VendorInventory() {
                         <div className="w-24 h-24 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-6">
                             <Package className="w-10 h-10 text-orange-500" />
                         </div>
-                        <h2 className="text-2xl font-black text-slate-900 mb-2">No items found</h2>
-                        <p className="text-slate-500 mb-8 max-w-sm mx-auto font-medium">Start managing your stock by adding your first product to the inventory.</p>
-                        <Button className="bg-orange-600 hover:bg-orange-700 h-14 px-10 rounded-2xl font-black" onClick={() => setIsAddDialogOpen(true)}>
-                            Add Your First Item
-                        </Button>
+                        <h3 className="text-2xl font-black text-slate-800 mb-2 italic">Ready to set up Shop?</h3>
+                        <p className="text-slate-500 max-w-sm mx-auto mb-8 font-medium">Your storage is empty. Start by tracking your stock levels to prevent running out during rush hour!</p>
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                            <Button className="bg-orange-600 hover:bg-orange-700 h-14 px-10 rounded-2xl font-black" onClick={() => setIsAddDialogOpen(true)}>
+                                Add Your First Item
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="border-2 border-slate-900 h-14 px-10 rounded-2xl font-black hover:bg-slate-900 hover:text-white transition-all"
+                                onClick={async () => {
+                                    const defaults = [
+                                        { productName: 'Potatoes', category: 'Vegetables', quantity: 20, unit: 'kg', costPrice: 25 },
+                                        { productName: 'Puris', category: 'Grains', quantity: 1000, unit: 'pcs', costPrice: 0.5 },
+                                        { productName: 'Chickpeas', category: 'Grains', quantity: 10, unit: 'kg', costPrice: 80 },
+                                        { productName: 'Tamarind', category: 'Spices', quantity: 5, unit: 'kg', costPrice: 120 },
+                                        { productName: 'Mint', category: 'Vegetables', quantity: 2, unit: 'kg', costPrice: 40 },
+                                        { productName: 'Green Chilies', category: 'Vegetables', quantity: 1, unit: 'kg', costPrice: 60 },
+                                        { productName: 'Oil', category: 'Oil', quantity: 15, unit: 'Litre', costPrice: 140 },
+                                        { productName: 'Chaat Masala', category: 'Spices', quantity: 2, unit: 'kg', costPrice: 250 }
+                                    ];
+                                    try {
+                                        await api.patch("/vendors/inventory", { currentInventory: defaults });
+                                        setInventory(defaults);
+                                        toast.success("Template loaded successfully!");
+                                    } catch (error) {
+                                        toast.error("Failed to load template");
+                                    }
+                                }}
+                            >
+                                <Zap className="w-5 h-5 mr-2" /> Load Panipuri Template
+                            </Button>
+                        </div>
                     </div>
                 )}
             </div>

@@ -171,7 +171,7 @@ interface PaymentMethod {
 
 export default function BazaarBandhu() {
   const navigate = useNavigate();
-  const [selectedLanguage, setSelectedLanguage] = useState<string>('hi');
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -802,7 +802,7 @@ export default function BazaarBandhu() {
       }
 
       // Main NLP Logic
-      if (lowerText.includes('buy') || lowerText.includes('खरीद') || lowerText.includes('order')) {
+      if (lowerText.includes('buy') || lowerText.includes('order')) {
         const quantityMatch = text.match(/\d+/);
         const quantity = quantityMatch ? quantityMatch[0] : '10';
         const productMatch = products.find(p =>
@@ -813,24 +813,26 @@ export default function BazaarBandhu() {
         if (productMatch) {
           const total = parseInt(quantity) * productMatch.price;
           const totalSavings = parseInt(quantity) * (productMatch.marketPrice - productMatch.price);
-          response = `✅ Perfect! मैंने ${quantity}${productMatch.unit} ${productMatch.name} का सौदा ढूंढ लिया है:\n\n🏪 Supplier: ${productMatch.supplier}\n💰 Rate: ₹${productMatch.price}/${productMatch.unit}\n🔢 Total: ₹${total}\n💡 Savings: ₹${totalSavings}\n🚚 ETA: 20-30 mins\n\nShall I open payment for this order?`;
+          response = `✅ Perfect! I have found a deal for ${quantity}${productMatch.unit} ${productMatch.name}:\n\n🏪 Supplier: ${productMatch.supplier}\n💰 Rate: ₹${productMatch.price}/${productMatch.unit}\n🔢 Total: ₹${total}\n💡 Savings: ₹${totalSavings}\n🚚 ETA: 20-30 mins\n\nShall I open payment for this order?`;
           action = { type: 'buy', product: productMatch.name, quantity: `${quantity}${productMatch.unit}`, supplier: productMatch.supplier, price: total, savings: totalSavings };
         } else {
           response = `🤖 I couldn't find that item. I have **Puris, Mint Water, Chutney, and Potatoes** at wholesale rates. Want to see them?`;
         }
-      } else if (lowerText.includes('price') || lowerText.includes('कीमत') || lowerText.includes('rate')) {
+      } else if (lowerText.includes('price') || lowerText.includes('rate')) {
         const rates = products.map(p => `${p.image} ${p.name}: ₹${p.price}/${p.unit} (Save ₹${p.marketPrice - p.price})`).join('\n');
         response = `📊 **Live Market Rates:**\n\n${rates}\n\nShall I buy anything for you?`;
-      } else if (lowerText.includes('delivery') || lowerText.includes('डिलीवरी') || lowerText.includes('track')) {
+      } else if (lowerText.includes('delivery') || lowerText.includes('track')) {
         const recent = activeDeliveries[0];
         response = `🚚 **Delivery Status:**\n📦 Order #${recent.orderId}\n👤 Driver: ${recent.driver.name}\n📍 Loc: ${recent.currentLocation}\n⏰ ETA: ${recent.estimatedTime}`;
-      } else if (lowerText.includes('stock') || lowerText.includes('स्टॉक') || lowerText.includes('inventory')) {
+      } else if (lowerText.includes('stock') || lowerText.includes('inventory')) {
         const low = products.filter(p => p.stock < 15);
         response = `📦 **Inventory Status:**\n${low.map(p => `🔴 Low: ${p.name} (${p.stock}${p.unit})`).join('\n')}\n${products.filter(p => p.stock >= 15).map(p => `🟢 Ok: ${p.name}`).join('\n')}`;
       } else if (lowerText.includes('how to') || lowerText.includes('tips') || lowerText.includes('profit')) {
         response = `📈 **Business Growth Hub:**\n1. Prepare spicy water 6h early.\n2. Bulk potato orders save 15%.\n3. Every 5th customer gets a free puri!`;
+      } else if (lowerText.includes('report') || lowerText.includes('summary')) {
+        response = `📊 **Business Summary Report**\n\n💰 Total Sales: ₹${(quickStats.todaysSavings * 4).toLocaleString()}\n💡 Total Savings: ₹${quickStats.todaysSavings.toLocaleString()}\n📦 Inventory Health: ${vendorData?.currentInventory?.length || 0} items active\n🚚 Active Deliveries: ${quickStats.activeDeliveries}\n\n*Everything looks great with your business today!*`;
       } else {
-        response = `🤖 I heard: "${voiceInput || text}"\n\nTry:\n🛒 "Buy 20 packs puris"\n📈 "How to increase profit?"\n🚚 "Track order"`;
+        response = `🤖 I heard: "${voiceInput || text}"\n\nTry:\n🛒 "Buy 20 packs puris"\n📊 "Show my business report"\n🚚 "Track order"`;
       }
 
       const aiMessage: AIMessage = { id: (Date.now() + 1).toString(), text: response, sender: 'ai', timestamp: new Date(), action };
@@ -852,7 +854,7 @@ export default function BazaarBandhu() {
         window.speechSynthesis.cancel();
         const cleanText = response.replace(/[#*`✅🏪💰🔢💡⭐🚚🤖📊📦🔴🟡🟢⚠️]/g, '').trim();
         const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'mr' ? 'mr-IN' : 'en-US';
+        utterance.lang = 'en-US';
         window.speechSynthesis.speak(utterance);
       }
     }, 1500);
@@ -1050,27 +1052,60 @@ export default function BazaarBandhu() {
   };
 
   const handleDownloadReport = () => {
-    const reportData = [
-      ['Date', 'Supplier', 'Items', 'Amount', 'Savings'],
-      ['24 Feb', 'Fresh Farms', 'Tomatoes, Potatoes', '₹1,240', '₹180'],
-      ['22 Feb', 'Ravi Traders', 'Onions, Dry Fruits', '₹850', '₹120'],
-      ['Today', currentPurchase?.supplier || 'N/A', `${currentPurchase?.quantity || 0}${currentPurchase?.unit || ''} ${currentPurchase?.product || ''}`, `₹${currentPurchase?.total || 0}`, `₹${currentPurchase?.savings || 0}`],
-      ['', '', 'TOTAL SPENT', `₹${quickStats.todaysSavings + 12450}`, ''],
-      ['', '', 'TOTAL SAVED', `₹${quickStats.todaysSavings + 1840}`, '']
+    // Collect data from vendorData and stats
+    const reportDate = new Date().toLocaleDateString();
+    const headers = ["Business Report - BazaarBandhu", "Date: " + reportDate];
+    const section1 = ["", "--- FINANCIAL SUMMARY ---"];
+    const financialData = [
+      ["Metric", "Value"],
+      ["Total Business Spending", "INR " + (vendorData?.totalSpent || 12450).toLocaleString()],
+      ["AI-Driven Smart Savings", "INR " + (vendorData?.totalSavings || 1840).toLocaleString()],
+      ["Current Marketplace Credit", "INR " + (vendorData?.currentCredit || 4200).toLocaleString()],
+      ["Month-on-Month Growth", "12%"]
     ];
 
+    const section2 = ["", "--- RECENT TRANSACTIONS ---"];
+    const transactions = [
+      ["Date", "Supplier", "Items Purchased", "Amount Paid", "Savings"],
+      ["24 Feb", "Fresh Farms", "Tomatoes and Potatoes", "INR 1240", "INR 180"],
+      ["22 Feb", "Ravi Traders", "Onions and Dry Fruits", "INR 850", "INR 120"],
+      ["Today", currentPurchase?.supplier || "N/A", `${currentPurchase?.quantity || 0}${currentPurchase?.unit || ""} ${currentPurchase?.product || ""}`, "INR " + (currentPurchase?.total || 0), "INR " + (currentPurchase?.savings || 0)]
+    ];
+
+    const section3 = ["", "--- INVENTORY HEALTH ---"];
+    const inventory = [
+      ["Product Name", "Current Stock", "Status"],
+      ...(vendorData?.currentInventory || []).map((item: any) => [
+        item.productName,
+        `${item.quantity} ${item.unit}`,
+        item.quantity <= (item.threshold || 5) ? "LOW STOCK" : "Healthy"
+      ])
+    ];
+
+    const formatRow = (row: string[]) => row.join(",");
+
     const csvContent = "data:text/csv;charset=utf-8,"
-      + reportData.map(e => e.join(",")).join("\n");
+      + [
+        headers.join(","),
+        ...section1.map(r => r),
+        ...financialData.map(formatRow),
+        ...section2.map(r => r),
+        ...transactions.map(formatRow),
+        ...section3.map(r => r),
+        ...inventory.map(formatRow),
+        "",
+        "Footer: Generated by BazaarBandhu AI Assistant"
+      ].join("\n");
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `BazaarBandhu_Report_${new Date().toLocaleDateString()}.csv`);
+    link.setAttribute("download", `Business_Report_${reportDate.replace(/\//g, "-")}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    alert('📊 Your business report has been generated and downloaded successfully!');
+    toast.success('Business report generated successfully!');
   };
 
   const markNotificationAsRead = (id: string) => {
@@ -1420,26 +1455,46 @@ export default function BazaarBandhu() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {/* Low Stock Alert */}
-                    <div className="p-3 rounded-lg bg-red-50 border border-red-100 flex items-start space-x-3">
-                      <Package className="h-4 w-4 text-red-600 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-red-900">Low Stock: Onions</p>
-                        <p className="text-xs text-red-700">Only 5kg left. Usual reorder at 10kg.</p>
-                        <Button size="sm" variant="link" className="p-0 h-auto text-xs text-red-800 font-bold mt-1">
-                          Reorder Now →
-                        </Button>
+                    {/* Dynamic Low Stock Alerts */}
+                    {vendorData?.currentInventory?.filter((item: any) => (item.quantity || 0) <= (item.threshold || 5)).length > 0 ? (
+                      vendorData.currentInventory
+                        .filter((item: any) => (item.quantity || 0) <= (item.threshold || 5))
+                        .slice(0, 2)
+                        .map((item: any, idx: number) => (
+                          <div key={idx} className="p-3 rounded-lg bg-red-50 border border-red-100 flex items-start space-x-3 marketplace-floating">
+                            <Package className="h-4 w-4 text-red-600 mt-0.5" />
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-red-900">Low Stock: {item.productName}</p>
+                              <p className="text-xs text-red-700">Only {item.quantity}{item.unit} left. Reorder point: {item.threshold || 5}{item.unit}.</p>
+                              <Button
+                                size="sm"
+                                variant="link"
+                                className="p-0 h-auto text-xs text-red-800 font-bold mt-1"
+                                onClick={() => setActiveTab('bazaar')}
+                              >
+                                Reorder Now →
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="p-3 rounded-lg bg-green-50 border border-green-100 flex items-start space-x-3">
+                        <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-green-900">All Stocks Healthy</p>
+                          <p className="text-xs text-green-700">No critical low stock items today.</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Pending Payment Alert */}
+                    {/* Dynamic Payment/Orders Alert */}
                     <div className="p-3 rounded-lg bg-orange-50 border border-orange-100 flex items-start space-x-3">
                       <IndianRupee className="h-4 w-4 text-orange-600 mt-0.5" />
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-orange-900">Payment Due: Ravi Traders</p>
-                        <p className="text-xs text-orange-700">₹1,250 overdue by 2 days.</p>
-                        <Button size="sm" variant="link" className="p-0 h-auto text-xs text-orange-800 font-bold mt-1">
-                          Settle Payment →
+                        <p className="text-sm font-semibold text-orange-900">Business Health Good</p>
+                        <p className="text-xs text-orange-700">You saved ₹{vendorData?.savings?.totalSaved?.toLocaleString() || '450'} this month!</p>
+                        <Button size="sm" variant="link" className="p-0 h-auto text-xs text-orange-800 font-bold mt-1" onClick={() => setActiveTab('insights')}>
+                          View Savings Report →
                         </Button>
                       </div>
                     </div>
@@ -1498,14 +1553,42 @@ export default function BazaarBandhu() {
                         <div className="p-8 text-center text-gray-400">
                           <Package className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                           <p className="text-xs">No inventory items found</p>
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="text-xs text-blue-600 h-auto p-0 mt-2"
-                            onClick={() => window.location.href = '/inventory'}
-                          >
-                            Add your first item
-                          </Button>
+                          <div className="flex flex-col items-center space-y-2 mt-3">
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="text-xs text-blue-600 h-auto p-0"
+                              onClick={() => window.location.href = '/inventory'}
+                            >
+                              Add your first item
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-[10px] font-bold border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg px-3 py-1"
+                              onClick={async () => {
+                                const defaults = [
+                                  { productName: 'आलू (Potatoes)', category: 'Vegetables', quantity: 20, unit: 'kg', costPrice: 25 },
+                                  { productName: 'पूरी (Puris)', category: 'Grains', quantity: 1000, unit: 'pcs', costPrice: 0.5 },
+                                  { productName: 'चना (Chickpeas)', category: 'Grains', quantity: 10, unit: 'kg', costPrice: 80 },
+                                  { productName: 'इमली (Tamarind)', category: 'Spices', quantity: 5, unit: 'kg', costPrice: 120 },
+                                  { productName: 'पुदीना (Mint)', category: 'Vegetables', quantity: 2, unit: 'kg', costPrice: 40 },
+                                  { productName: 'मिर्च (Green Chilies)', category: 'Vegetables', quantity: 1, unit: 'kg', costPrice: 60 },
+                                  { productName: 'तेल (Oil)', category: 'Oil', quantity: 15, unit: 'Litre', costPrice: 140 },
+                                  { productName: 'मसाला (Chaat Masala)', category: 'Spices', quantity: 2, unit: 'kg', costPrice: 250 }
+                                ];
+                                try {
+                                  await api.patch("/vendors/inventory", { currentInventory: defaults });
+                                  setVendorData((prev: any) => ({ ...prev, currentInventory: defaults }));
+                                  toast.success("Panipuri template loaded!");
+                                } catch (error) {
+                                  toast.error("Failed to load template");
+                                }
+                              }}
+                            >
+                              <Zap className="h-3 w-3 mr-1 text-orange-500" /> Load Panipuri Template
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1790,10 +1873,10 @@ export default function BazaarBandhu() {
                         variant="outline"
                         size="sm"
                         className="text-[10px] h-8 font-bold glow-border"
-                        onClick={() => alert(`Calling ${delivery.driver.name} at ${delivery.driver.phone}`)}
+                        onClick={() => window.location.href = `tel:${delivery.driver.phone}`}
                       >
                         <Phone className="h-3 w-3 mr-1" />
-                        Call Logistics
+                        Call: {delivery.driver.phone}
                       </Button>
                       <Button
                         size="sm"
@@ -1952,9 +2035,13 @@ export default function BazaarBandhu() {
                       </div>
 
                       <div className="flex space-x-2">
-                        <Button size="sm" className="flex-1 bg-white text-green-600 border border-green-200 hover:bg-green-50 font-bold text-xs" onClick={() => alert(`Calling ${supplier.phone}`)}>
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-white text-green-600 border border-green-200 hover:bg-green-50 font-bold text-[10px] p-1 px-2"
+                          onClick={() => window.location.href = `tel:${supplier.phone}`}
+                        >
                           <Phone className="h-3 w-3 mr-1" />
-                          Call
+                          Call: {supplier.phone}
                         </Button>
                         <Button
                           size="sm"
