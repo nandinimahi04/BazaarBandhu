@@ -307,29 +307,29 @@ export default function BazaarBandhu() {
   const [products, setProducts] = useState([
     {
       id: 'p1',
-      name: getTranslation('puris', selectedLanguage),
-      price: 120,
-      marketPrice: 140,
-      unit: 'pack',
+      name: "Onions (प्याज)",
+      price: 35,
+      marketPrice: 45,
+      unit: 'kg',
       trending: 'stable',
-      savings: 20,
-      supplier: 'Golden Bakes',
-      stock: 300,
-      quality: 'Crispy',
-      image: '🫓'
+      savings: 10,
+      supplier: 'Ravi Traders',
+      stock: 500,
+      quality: 'Premium',
+      image: '🧅'
     },
     {
       id: 'p2',
-      name: getTranslation('mintWater', selectedLanguage),
-      price: 45,
-      marketPrice: 50,
-      unit: 'L',
+      name: "Potatoes (आलू)",
+      price: 25,
+      marketPrice: 30,
+      unit: 'kg',
       trending: 'up',
       savings: 5,
-      supplier: 'Fresh Mandi',
-      stock: 12,
-      quality: 'Spicy',
-      image: '🧪'
+      supplier: 'Ravi Traders',
+      stock: 300,
+      quality: 'A+',
+      image: '🥔'
     },
     {
       id: 'p3',
@@ -340,7 +340,7 @@ export default function BazaarBandhu() {
       trending: 'stable',
       savings: 15,
       supplier: 'Maharaj Wholesale',
-      stock: 5,
+      stock: 50,
       quality: 'Sweet',
       image: '🍯'
     },
@@ -353,22 +353,22 @@ export default function BazaarBandhu() {
       trending: 'down',
       savings: 15,
       supplier: 'Krishna Grains',
-      stock: 8,
+      stock: 80,
       quality: 'Fresh',
       image: '🥗'
     },
     {
       id: 'p5',
-      name: getTranslation('potatoes', selectedLanguage),
-      price: 65,
-      marketPrice: 70,
+      name: "Fresh Tomatoes",
+      price: 40,
+      marketPrice: 50,
       unit: 'kg',
       trending: 'stable',
-      savings: 5,
-      supplier: 'Village Direct',
-      stock: 45,
+      savings: 10,
+      supplier: 'Ravi Traders',
+      stock: 200,
       quality: 'A+',
-      image: '🥔'
+      image: '🍅'
     }
   ]);
 
@@ -442,7 +442,7 @@ export default function BazaarBandhu() {
 
   const suppliersList = [
     {
-      id: 1,
+      id: "69a0e6891822b72108f2b813",
       name: "Ravi Traders",
       owner: "Ravi Bhai Sharma",
       rating: 4.8,
@@ -452,7 +452,7 @@ export default function BazaarBandhu() {
       location: "Solapur Main Mandi",
       phone: "+91 98765 43210",
       category: "vegetables",
-      speciality: ["Onion", "Tomato", "Potato"],
+      speciality: ["Potatoes (आलू)", "Onions (प्याज)"],
       pricing: "wholesale",
       deliveryTime: "2-3 hours",
       minOrder: 500,

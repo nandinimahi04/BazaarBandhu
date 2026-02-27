@@ -182,7 +182,7 @@ router.post('/auth/register', async (req: any, res: any) => {
 
         const token = jwt.sign(
             { userId: newUser._id, email: newUser.email, userType: newUser.userType },
-            process.env.JWT_SECRET || 'bazaar_secret_key_2024',
+            process.env.JWT_SECRET || 'bazaarbandhu_secret',
             { expiresIn: '7d' }
         );
 
@@ -795,6 +795,15 @@ router.post('/orders', authenticateToken, async (req: any, res: any) => {
         });
 
         await order.save();
+
+        // Update vendor financial stats
+        await Vendor.findByIdAndUpdate(req.user.userId, {
+            $inc: {
+                totalSpent: totalAmount,
+                totalSavings: savedAmount,
+                totalOrders: 1
+            }
+        });
 
         // Add initial tracking step
         await order.addTrackingStep('pending', 'Order received', 'Order has been placed and is awaiting confirmation');
