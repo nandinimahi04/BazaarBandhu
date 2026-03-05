@@ -11,9 +11,15 @@ const router = express.Router();
 import Order from '../models/Order.js';
 
 const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_5yLzXw7fN4LwXj',
-    key_secret: process.env.RAZORPAY_KEY_SECRET || 'secret_key_here'
+    key_id: process.env.RAZORPAY_KEY_ID || '',
+    key_secret: process.env.RAZORPAY_KEY_SECRET || ''
 });
+
+if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    console.warn('⚠️ Razorpay Keys are missing from environment variables!');
+} else {
+    console.log('✅ Razorpay initialized with Key ID:', `${process.env.RAZORPAY_KEY_ID.substring(0, 9)}...`);
+}
 
 // Create Razorpay Order
 router.post('/create-order', async (req: any, res: any) => {

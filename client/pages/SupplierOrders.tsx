@@ -35,7 +35,7 @@ export default function SupplierOrders() {
             setOrders(data.orders || []);
         } catch (error) {
             console.error("Fetch orders error:", error);
-            toast.error("ऑर्डर लोड करने में विफल");
+            toast.error("Failed to load orders");
         } finally {
             setIsLoading(false);
         }
@@ -48,10 +48,10 @@ export default function SupplierOrders() {
                 location: "Warehouse",
                 description: `Order updated to ${newStatus}`
             });
-            toast.success(`ऑर्डर स्थिति अपडेट की गई: ${newStatus}`);
+            toast.success(`Order status updated to: ${newStatus}`);
             fetchOrders();
         } catch (error) {
-            toast.error("अपडेट करने में विफल");
+            toast.error("Failed to update");
         }
     };
 

@@ -52,7 +52,7 @@ export default function Inventory() {
             setProducts(profile.products || []);
         } catch (error) {
             console.error("Fetch inventory error:", error);
-            toast.error("इंवेंट्री लोड करने में विफल");
+            toast.error("Failed to load inventory");
         } finally {
             setIsLoading(false);
         }
@@ -60,7 +60,7 @@ export default function Inventory() {
 
     const handleSaveProduct = async () => {
         if (!formData.name) {
-            toast.error("कृपया उत्पाद का नाम दर्ज करें");
+            toast.error("Please enter product name");
             return;
         }
 
@@ -74,22 +74,22 @@ export default function Inventory() {
             setIsAddDialogOpen(false);
             setEditingProduct(null);
             setFormData({ name: "", category: "Vegetables", pricePerUnit: 0, unit: "kg", inventory: 0, marketPrice: 0 });
-            toast.success(editingProduct ? "उत्पाद अपडेट किया गया" : "नया उत्पाद जोड़ा गया");
+            toast.success(editingProduct ? "Product updated" : "New product added");
         } catch (error) {
-            toast.error("सहेजने में विफल");
+            toast.error("Failed to save");
         }
     };
 
     const handleDeleteProduct = async (name: string) => {
-        if (!confirm(`क्या आप वाकई ${name} को हटाना चाहते हैं?`)) return;
+        if (!confirm(`Are you sure you want to remove ${name}?`)) return;
 
         try {
             const updatedProducts = products.filter(p => p.name !== name);
             const response = await api.post("/suppliers/products", { products: updatedProducts });
             setProducts(response.products);
-            toast.success("उत्पाद हटा दिया गया");
+            toast.success("Product removed");
         } catch (error) {
-            toast.error("हटाने में विफल");
+            toast.error("Failed to remove");
         }
     };
 

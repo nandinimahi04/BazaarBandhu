@@ -73,7 +73,7 @@ export default function SupplierDashboard() {
 
         } catch (error) {
             console.error("Dashboard load error:", error);
-            toast.error("डैशबोर्ड डेटा लोड करने में विफल");
+            toast.error("Failed to load dashboard data");
         } finally {
             setIsLoading(false);
         }
@@ -83,7 +83,7 @@ export default function SupplierDashboard() {
         localStorage.removeItem("user");
         localStorage.removeItem("token");
         navigate("/login");
-        toast.success("सफलतापूर्वक लॉगआउट किया गया");
+        toast.success("Successfully logged out");
     };
 
     if (isLoading) {
@@ -146,7 +146,7 @@ export default function SupplierDashboard() {
                 <header className="flex items-center justify-between mb-10">
                     <div>
                         <h1 className="text-3xl font-bold text-slate-900">
-                            Suprabhat, {supplierData?.fullName?.split(' ')[0] || "Supplier"}! 👋
+                            Good Morning, {supplierData?.fullName?.split(' ')[0] || "Supplier"}! 👋
                         </h1>
                         <p className="text-slate-500">{supplierData?.businessName} Performance Summary</p>
                     </div>
@@ -282,20 +282,49 @@ export default function SupplierDashboard() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {products.slice(0, 5).map((product, idx) => (
-                                    <div key={idx} className="p-4 bg-slate-50 rounded-xl">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <p className="font-bold text-slate-900">{product.name}</p>
-                                            <p className="text-sm font-medium text-orange-600">₹{product.pricePerUnit}/{product.unit}</p>
+                                {products.length > 0 ? (
+                                    products.slice(0, 5).map((product, idx) => (
+                                        <div key={idx} className="p-4 bg-slate-50 rounded-xl">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <p className="font-bold text-slate-900">{product.name}</p>
+                                                <p className="text-sm font-medium text-orange-600">₹{product.pricePerUnit}/{product.unit}</p>
+                                            </div>
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-slate-500">Inventory: {product.inventory} {product.unit}</span>
+                                                <span className={product.inventory < 50 ? "text-red-500 font-bold" : "text-green-500"}>
+                                                    {product.inventory < 50 ? "Low" : "Normal"}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="text-slate-500">Inventory: {product.inventory} {product.unit}</span>
-                                            <span className={product.inventory < 50 ? "text-red-500 font-bold" : "text-green-500"}>
-                                                {product.inventory < 50 ? "Low" : "Normal"}
-                                            </span>
-                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-6">
+                                        <p className="text-slate-500 text-sm mb-4">No products in catalog</p>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full border-dashed border-2 hover:bg-orange-50 border-orange-200 text-orange-600"
+                                            onClick={async () => {
+                                                const defaults = [
+                                                    { name: 'Fresh Onions', category: 'Vegetables', pricePerUnit: 22, unit: 'kg', inventory: 500, marketPrice: 28 },
+                                                    { name: 'Premium Potatoes', category: 'Vegetables', pricePerUnit: 18, unit: 'kg', inventory: 800, marketPrice: 24 },
+                                                    { name: 'Red Tomatoes', category: 'Vegetables', pricePerUnit: 35, unit: 'kg', inventory: 300, marketPrice: 45 },
+                                                    { name: 'Wholesale Garlic', category: 'Spices', pricePerUnit: 120, unit: 'kg', inventory: 150, marketPrice: 150 },
+                                                    { name: 'Mustard Oil (15L)', category: 'Oil', pricePerUnit: 2100, unit: 'tin', inventory: 40, marketPrice: 2350 }
+                                                ];
+                                                try {
+                                                    const res = await api.post("/suppliers/products", { products: defaults });
+                                                    setProducts(res.products);
+                                                    toast.success("Sample catalog loaded!");
+                                                } catch (err) {
+                                                    toast.error("Failed to load sample data");
+                                                }
+                                            }}
+                                        >
+                                            <Plus className="w-4 h-4 mr-2" /> Load Sample Catalog
+                                        </Button>
                                     </div>
-                                ))}
+                                )}
                             </div>
                             <Link to="/inventory">
                                 <Button className="w-full mt-6 bg-slate-900 hover:bg-black text-white rounded-xl h-12">
