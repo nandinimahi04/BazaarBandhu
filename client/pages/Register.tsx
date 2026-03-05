@@ -21,14 +21,16 @@ import {
   Truck,
   ShieldCheck
 } from "lucide-react";
-import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Register() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { login } = useAuth();
   const role = searchParams.get("role") || "vendor"; // default to vendor
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -183,8 +185,7 @@ export default function Register() {
 
       const data = await api.post("/auth/register", payload);
 
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      login(data.user, data.token);
 
       toast.success('🎉 Registration Successful! Welcome to BazaarBandhu.');
       navigate('/dashboard');

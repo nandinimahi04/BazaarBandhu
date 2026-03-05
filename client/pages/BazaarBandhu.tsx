@@ -91,11 +91,12 @@ import {
   Calendar as Cal,
   LineChart as LucideLineChart
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import {
   LineChart,
   Line,
@@ -171,6 +172,7 @@ interface PaymentMethod {
 
 export default function BazaarBandhu() {
   const navigate = useNavigate();
+  const { user, login, logout } = useAuth();
   const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isVoiceActive, setIsVoiceActive] = useState(false);
@@ -197,8 +199,6 @@ export default function BazaarBandhu() {
     costPrice: ''
   });
   const { addToCart, itemCount } = useCart();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<any>(null);
   const [bazaarSearchQuery, setBazaarSearchQuery] = useState("");
   const [bazaarSelectedCategory, setBazaarSelectedCategory] = useState("all");
 
@@ -211,36 +211,28 @@ export default function BazaarBandhu() {
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    if (storedUser && token) {
-      setIsLoggedIn(true);
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-
+    if (user && user.userType === 'vendor') {
       // Fetch full vendor profile if user is a vendor
-      if (parsedUser.userType === 'vendor') {
-        const fetchVendorProfile = async () => {
-          try {
-            const data = await api.get('/vendors/profile');
-            setVendorData(data);
-          } catch (error) {
-            console.error('Error fetching vendor profile:', error);
-          }
-        };
-        fetchVendorProfile();
+      const fetchVendorProfile = async () => {
+        try {
+          const data = await api.get('/vendors/profile');
+          setVendorData(data);
+        } catch (error) {
+          console.error('Error fetching vendor profile:', error);
+        }
+      };
+      fetchVendorProfile();
 
-        // Fetch Recent Orders
-        const fetchOrders = async () => {
-          try {
-            const data = await api.get('/orders', { limit: 5 });
-            setRecentOrders(data.orders || []);
-          } catch (error) {
-            console.error('Error fetching orders:', error);
-          }
-        };
-        fetchOrders();
-      }
+      // Fetch Recent Orders
+      const fetchOrders = async () => {
+        try {
+          const data = await api.get('/orders?limit=5');
+          setRecentOrders(data.orders || []);
+        } catch (error) {
+          console.error('Error fetching orders:', error);
+        }
+      };
+      fetchOrders();
     }
 
     // Fetch Suppliers
@@ -263,7 +255,7 @@ export default function BazaarBandhu() {
         setHeaderStatusKey(data.statusKey);
       })
       .catch(err => console.error('Status fetch error:', err));
-  }, []);
+  }, [user]);
 
   // Fetch products when a supplier is selected
   useEffect(() => {
@@ -294,10 +286,8 @@ export default function BazaarBandhu() {
   }, [selectedSupplier]);
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    setIsLoggedIn(false);
-    setUser(null);
+    logout();
+    navigate("/login");
   };
 
   const loadRazorpay = () => {
@@ -1260,7 +1250,7 @@ export default function BazaarBandhu() {
               </Select>
 
               {/* Login Button or User Profile */}
-              {!isLoggedIn ? (
+              {!user ? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -2785,19 +2775,14 @@ export default function BazaarBandhu() {
 
                 const data = await api.post(endpoint, payload);
 
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data.user));
-
-                // Update local state immediately for better UX
-                setIsLoggedIn(true);
-                setUser(data.user);
+                login(data.user, data.token);
 
                 if (data.user.userType === 'vendor') {
                   const vData = await api.get('/vendors/profile');
                   setVendorData(vData);
                 }
 
-                toast.success(`🎉 ${authMode === 'login' ? 'Login' : 'Signup'} successful! Welcome to BazaarBandhu, ${data.user.fullName}!`);
+                toast.success(`🎉 ${authMode === 'login' ? 'Login' : 'Signup'} successful! Welcome to BazaarBandhu, ${data.user.fullName || data.user.name}!`);
                 setShowAuthModal(false);
 
                 // If not already on appropriate dashboard, redirect

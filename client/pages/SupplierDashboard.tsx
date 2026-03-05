@@ -22,13 +22,15 @@ import {
     CheckCircle2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { format } from "date-fns";
+import { useAuth } from "@/context/AuthContext";
 
 export default function SupplierDashboard() {
     const navigate = useNavigate();
+    const { logout } = useAuth();
     const [supplierData, setSupplierData] = useState<any>(null);
     const [analytics, setAnalytics] = useState({
         totalOrders: 0,
@@ -80,8 +82,7 @@ export default function SupplierDashboard() {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
+        logout();
         navigate("/login");
         toast.success("Successfully logged out");
     };

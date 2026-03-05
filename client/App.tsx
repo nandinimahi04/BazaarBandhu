@@ -29,37 +29,12 @@ import VendorInventory from "./pages/VendorInventory";
 
 // Context
 import { CartProvider } from "./context/CartContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = () => {
-      try {
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
-        console.error("Auth initialization error:", error);
-        localStorage.removeItem("user");
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-
-    // Listen for storage changes (e.g. login/logout in other tabs)
-    window.addEventListener('storage', checkAuth);
-    return () => window.removeEventListener('storage', checkAuth);
-  }, []);
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -141,9 +116,11 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <CartProvider>
-        <AppContent />
-      </CartProvider>
+      <AuthProvider>
+        <CartProvider>
+          <AppContent />
+        </CartProvider>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
