@@ -61,7 +61,8 @@ const supplierSchema = new mongoose.Schema({
         category: { type: String, required: true },
         unit: { type: String, required: true }, // kg, litre, piece, etc.
         pricePerUnit: { type: Number, required: true },
-        currentStock: { type: Number, default: 0 },
+        marketPrice: { type: Number }, // For savings calculation
+        inventory: { type: Number, default: 0 },
         minStock: { type: Number, default: 10 },
         maxStock: { type: Number, default: 1000 },
         quality: { type: String, enum: ['A+', 'A', 'B+', 'B'], default: 'A' },
@@ -140,21 +141,21 @@ supplierSchema.methods.servesArea = function (this: any, pincode: string) {
     return this.serviceAreas.some((area: any) => area.pincode === pincode);
 };
 
-// Method to get available products
-supplierSchema.methods.getAvailableProducts = function (this: any) {
-    return this.products.filter((product: any) =>
-        product.isActive && product.currentStock > product.minStock
-    );
+// Helper method to check availability
+supplierSchema.methods.checkProductAvailability = function (productName: string, quantity: number) {
+    const product = this.products.find((p: any) => p.name === productName);
+    return product &&
+        product.isActive && product.inventory >= quantity && product.inventory > product.minStock
 };
 
-// Method to update stock
-supplierSchema.methods.updateStock = function (this: any, productId: string, quantity: number, operation = 'subtract') {
-    const product = this.products.id(productId);
+// Helper to update stock
+supplierSchema.methods.updateStock = function (productName: string, quantity: number, type: 'in' | 'out') {
+    const product = this.products.find((p: any) => p.name === productName);
     if (product) {
-        if (operation === 'subtract') {
-            product.currentStock = Math.max(0, product.currentStock - quantity);
+        if (type === 'out') {
+            product.inventory = Math.max(0, product.inventory - quantity);
         } else {
-            product.currentStock += quantity;
+            product.inventory += quantity;
         }
         return this.save();
     }

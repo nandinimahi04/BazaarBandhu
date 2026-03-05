@@ -110,12 +110,12 @@ const orderSchema = new mongoose.Schema({
     // Parties Involved
     vendor: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Vendor',
+        ref: 'User',
         required: true
     },
     supplier: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Supplier',
+        ref: 'User',
         required: true
     },
 

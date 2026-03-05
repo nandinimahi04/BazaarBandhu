@@ -60,7 +60,7 @@ const userSchema = new mongoose.Schema({
 
     // Profile
     profileImage: { type: String },
-    language: {
+    appLanguage: {
         type: String,
         enum: ['hi', 'en', 'mr', 'gu', 'ta', 'te', 'kn', 'bn'],
         default: 'hi'

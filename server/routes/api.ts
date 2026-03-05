@@ -416,7 +416,7 @@ router.get('/suppliers/:id/products', async (req: any, res: any) => {
 
         // Only return active products with stock > 0
         const availableProducts = supplier.products.filter(
-            (p: any) => p.isActive !== false && (p.currentStock === undefined || p.currentStock > 0 || p.inventory > 0)
+            (p: any) => p.isActive !== false && (p.inventory === undefined || p.inventory > 0)
         );
 
         res.json({
@@ -802,6 +802,7 @@ router.post('/orders', authenticateToken, async (req: any, res: any) => {
             return {
                 ...item,
                 productId: supplierProduct?._id || item.productId,
+                category: item.category || supplierProduct?.category || 'General',
                 pricePerUnit: priceToUse,
                 totalPrice: total
             };
@@ -815,6 +816,21 @@ router.post('/orders', authenticateToken, async (req: any, res: any) => {
         const totalAmount = subtotal + deliveryCharge;
         const savedAmount = marketPriceTotal - subtotal;
 
+        // Parse timeSlot if string
+        let finalTimeSlot = timeSlot;
+        if (typeof timeSlot === 'string') {
+            const parts = timeSlot.split('-').map(s => s.trim());
+            finalTimeSlot = {
+                from: parts[0] || '09:00',
+                to: parts[1] || '18:00'
+            };
+        } else if (!timeSlot || !timeSlot.from) {
+            finalTimeSlot = { from: '09:00', to: '18:00' };
+        }
+
+        console.log('[ORDER] Final TimeSlot:', finalTimeSlot);
+        console.log('[ORDER] Processed Items Sample:', processedItems[0]);
+
         // Create order
         const order = new Order({
             vendor: req.user.userId,
@@ -825,11 +841,11 @@ router.post('/orders', authenticateToken, async (req: any, res: any) => {
             totalAmount,
             marketPrice: marketPriceTotal,
             savedAmount,
-            savingsPercentage: marketPriceTotal > 0 ? ((savedAmount / marketPriceTotal) * 100).toFixed(2) : 0,
+            savingsPercentage: marketPriceTotal > 0 ? parseFloat(((savedAmount / marketPriceTotal) * 100).toFixed(2)) : 0,
             delivery: {
                 address: deliveryAddress,
                 scheduledDate: new Date(scheduledDate),
-                timeSlot,
+                timeSlot: finalTimeSlot,
                 deliveryCharge
             },
             payment: {
@@ -865,10 +881,7 @@ router.post('/orders', authenticateToken, async (req: any, res: any) => {
                 );
                 if (prodIdx >= 0) {
                     const prod = supplierDoc.products[prodIdx];
-                    // Decrement whichever stock field is set
-                    if (prod.currentStock !== undefined) {
-                        prod.currentStock = Math.max(0, (prod.currentStock || 0) - item.quantity);
-                    }
+                    // Decrement inventory field
                     if (prod.inventory !== undefined) {
                         prod.inventory = Math.max(0, (prod.inventory || 0) - item.quantity);
                     }

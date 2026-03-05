@@ -33,10 +33,19 @@ router.post('/create-order', async (req: any, res: any) => {
         };
 
         const order = await razorpay.orders.create(options);
+        console.log('✅ Razorpay order created:', order.id);
         res.json(order);
     } catch (error: any) {
-        console.error('Razorpay order creation failed:', error);
-        res.status(500).json({ error: error.message });
+        console.error('❌ Razorpay order creation failed!');
+        console.error('Error Name:', error.name);
+        console.error('Error Code:', error.code);
+        console.error('Error Description:', error.description);
+        console.error('Full Error:', JSON.stringify(error, null, 2));
+        res.status(500).json({
+            error: error.message,
+            description: error.description,
+            code: error.code
+        });
     }
 });
 

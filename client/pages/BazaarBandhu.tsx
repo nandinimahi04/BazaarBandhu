@@ -206,6 +206,10 @@ export default function BazaarBandhu() {
 
   const [vendorData, setVendorData] = useState<any>(null);
 
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
+
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
@@ -225,8 +229,33 @@ export default function BazaarBandhu() {
           }
         };
         fetchVendorProfile();
+
+        // Fetch Recent Orders
+        const fetchOrders = async () => {
+          try {
+            const data = await api.get('/orders', { limit: 5 });
+            setRecentOrders(data.orders || []);
+          } catch (error) {
+            console.error('Error fetching orders:', error);
+          }
+        };
+        fetchOrders();
       }
     }
+
+    // Fetch Suppliers
+    const fetchSuppliers = async () => {
+      try {
+        setIsLoadingSuppliers(true);
+        const data = await api.get('/suppliers');
+        setSuppliers(data.suppliers || []);
+      } catch (error) {
+        console.error('Error fetching suppliers:', error);
+      } finally {
+        setIsLoadingSuppliers(false);
+      }
+    };
+    fetchSuppliers();
 
     // Fetch dynamic status line
     api.get('/config/status-line')
@@ -235,6 +264,34 @@ export default function BazaarBandhu() {
       })
       .catch(err => console.error('Status fetch error:', err));
   }, []);
+
+  // Fetch products when a supplier is selected
+  useEffect(() => {
+    if (selectedSupplier && selectedSupplier._id) {
+      const fetchSupplierProducts = async () => {
+        try {
+          const data = await api.get(`/suppliers/${selectedSupplier._id}`);
+          if (data.supplier && data.supplier.products) {
+            const mappedProds = data.supplier.products.map((p: any) => ({
+              id: p._id,
+              name: p.name,
+              price: p.pricePerUnit,
+              marketPrice: p.marketPrice || p.pricePerUnit * 1.2,
+              unit: p.unit,
+              supplier: selectedSupplier.name,
+              supplierId: selectedSupplier._id,
+              image: '📦',
+              category: p.category
+            }));
+            setProducts(mappedProds);
+          }
+        } catch (error) {
+          console.error('Error fetching supplier products:', error);
+        }
+      };
+      fetchSupplierProducts();
+    }
+  }, [selectedSupplier]);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -866,13 +923,16 @@ export default function BazaarBandhu() {
 
     setCurrentPurchase({
       product: product.name,
+      productId: product.id,
       quantity,
       unit: product.unit,
       pricePerUnit: product.price,
       total,
       savings,
       supplier: product.supplier,
-      image: product.image
+      supplierId: product.supplierId,
+      image: product.image,
+      category: product.category
     });
     setShowPaymentModal(true);
   };
@@ -900,9 +960,13 @@ export default function BazaarBandhu() {
 
     try {
       // 1. Create Order on Backend
+      const token = localStorage.getItem('token');
       const orderRes = await fetch('/api/payments/create-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           amount: currentPurchase.total,
           currency: 'INR',
@@ -919,7 +983,7 @@ export default function BazaarBandhu() {
 
       // 2. Open Razorpay Checkout
       const options = {
-        key: 'rzp_test_5yLzXw7fN4LwXj', // Use env in production
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_SL6qOzy3RPxIKM',
         amount: rzpOrder.amount,
         currency: rzpOrder.currency,
         name: "BazaarBandhu",
@@ -930,7 +994,10 @@ export default function BazaarBandhu() {
           // 3. Verify Payment
           const verifyRes = await fetch('/api/payments/verify', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
             body: JSON.stringify({
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
@@ -966,7 +1033,38 @@ export default function BazaarBandhu() {
     }
   };
 
-  const processOrderSuccess = () => {
+  const processOrderSuccess = async () => {
+    try {
+      // 1. Save specific order to Database
+      const orderPayload = {
+        supplierId: currentPurchase.supplierId,
+        items: [{
+          productId: currentPurchase.productId,
+          productName: currentPurchase.product,
+          quantity: currentPurchase.quantity,
+          unit: currentPurchase.unit,
+          pricePerUnit: currentPurchase.pricePerUnit,
+          category: currentPurchase.category || 'General'
+        }],
+        totalAmount: currentPurchase.total,
+        paymentMethod: selectedPaymentMethod,
+        timeSlot: "Immediate",
+        deliveryAddress: user?.addressDetails || {
+          street: "Default Street",
+          city: "Default City",
+          state: "Default State",
+          pincode: "000000"
+        }
+      };
+
+      await api.post('/orders', orderPayload);
+      console.log("Order saved to database successfully");
+
+    } catch (error) {
+      console.error("Failed to save order to database:", error);
+      toast.error("Order placed locally but database sync failed.");
+    }
+
     // Update Application State
     setProducts(prev => prev.map(p =>
       p.name === currentPurchase.product
@@ -1897,37 +1995,45 @@ export default function BazaarBandhu() {
             <Card className="marketplace-shadow border-none bg-white/60">
               <CardContent className="p-0">
                 <div className="divide-y">
-                  {[
-                    { id: 'H1', date: '24 Feb', supplier: 'Fresh Farms', items: 'Tomatoes, Pot...', amount: '₹1,240', status: 'delivered' },
-                    { id: 'H2', date: '22 Feb', supplier: 'Ravi Traders', items: 'Onions, Dry...', amount: '₹850', status: 'delivered' },
-                    { id: 'H3', date: '20 Feb', supplier: 'Gupta Oil', items: 'Mustard Oil...', amount: '₹2,100', status: 'delivered' }
-                  ].map((history) => (
-                    <div key={history.id} className="p-4 flex items-center justify-between hover:bg-white/40 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-gray-100 p-2 rounded-lg">
-                          <Clipboard className="h-4 w-4 text-gray-600" />
+                  {recentOrders.length > 0 ? (
+                    recentOrders.map((history) => (
+                      <div key={history._id} className="p-4 flex items-center justify-between hover:bg-white/40 transition-colors">
+                        <div className="flex items-center space-x-3">
+                          <div className="bg-gray-100 p-2 rounded-lg">
+                            <Clipboard className="h-4 w-4 text-gray-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-gray-900">{history.supplier?.businessName || history.supplier?.fullName}</p>
+                            <p className="text-[10px] text-gray-500">{new Date(history.placedAt).toLocaleDateString()} • {history.items?.[0]?.productName}...</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs font-bold text-gray-900">{history.supplier}</p>
-                          <p className="text-[10px] text-gray-500">{history.date} • {history.items}</p>
+                        <div className="text-right">
+                          <p className="text-xs font-bold text-green-700">₹{history.totalAmount}</p>
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto text-[10px] text-blue-600 flex items-center ml-auto"
+                            onClick={() => {
+                              setSelectedOrder({
+                                id: history._id,
+                                supplier: history.supplier?.businessName,
+                                date: new Date(history.placedAt).toLocaleDateString(),
+                                items: history.items.map((i: any) => `${i.productName} (${i.quantity}${i.unit})`).join(', '),
+                                amount: `₹${history.totalAmount}`
+                              });
+                              setShowOrderDetails(true);
+                            }}
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            Bill
+                          </Button>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold text-green-700">{history.amount}</p>
-                        <Button
-                          variant="link"
-                          className="p-0 h-auto text-[10px] text-blue-600 flex items-center ml-auto"
-                          onClick={() => {
-                            setSelectedOrder(history);
-                            setShowOrderDetails(true);
-                          }}
-                        >
-                          <FileText className="h-3 w-3 mr-1" />
-                          Bill
-                        </Button>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-gray-400 italic text-sm">
+                      No recent orders found.
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1970,57 +2076,56 @@ export default function BazaarBandhu() {
 
             {/* Supplier Listings */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {suppliersList
+              {suppliers
                 .filter(s =>
-                  (bazaarSelectedCategory === 'all' || s.category === bazaarSelectedCategory) &&
-                  (s.name.toLowerCase().includes(bazaarSearchQuery.toLowerCase()) ||
-                    s.speciality.some(spec => spec.toLowerCase().includes(bazaarSearchQuery.toLowerCase())))
+                  (bazaarSelectedCategory === 'all' || (s.productCategories && s.productCategories.some((cat: string) => cat.toLowerCase() === bazaarSelectedCategory.toLowerCase()))) &&
+                  ((s.businessName || s.fullName)?.toLowerCase().includes(bazaarSearchQuery.toLowerCase()))
                 )
                 .map((supplier) => (
-                  <Card key={supplier.id} className="gradient-card marketplace-shadow overflow-hidden group">
+                  <Card key={supplier._id} className="gradient-card marketplace-shadow overflow-hidden group">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-3">
                           <Avatar className="h-12 w-12 border-2 border-green-200">
                             <AvatarFallback className="bg-gradient-to-br from-green-500 to-emerald-600 text-white font-bold text-lg">
-                              {supplier.name.charAt(0)}
+                              {(supplier.businessName || supplier.fullName)?.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
                           <div>
                             <div className="flex items-center space-x-2">
-                              <h3 className="font-bold text-lg text-gray-900">{supplier.name}</h3>
-                              {supplier.verified && <Shield className="h-4 w-4 text-green-600 fill-green-100" />}
+                              <h3 className="font-bold text-lg text-gray-900">{supplier.businessName || supplier.fullName}</h3>
+                              <Shield className="h-4 w-4 text-green-600 fill-green-100" />
                             </div>
-                            <p className="text-xs text-gray-600">{supplier.owner}</p>
+                            <p className="text-xs text-gray-600">{supplier.fullName}</p>
                             <div className="flex items-center space-x-2 mt-1">
                               <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                              <span className="text-xs font-bold">{supplier.rating}</span>
-                              <span className="text-[10px] text-gray-500">({supplier.reviews})</span>
+                              <span className="text-xs font-bold">{supplier.rating?.average || '0.0'}</span>
+                              <span className="text-[10px] text-gray-500">({supplier.rating?.count || 0})</span>
                             </div>
                           </div>
                         </div>
                         <Badge className="bg-green-100 text-green-800 text-[10px]">
-                          {supplier.distance}
+                          {supplier.distance || "2.4 km"}
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex flex-wrap gap-1">
-                        {supplier.speciality.map((item, idx) => (
+                        {supplier.productCategories?.map((item: any, idx: number) => (
                           <Badge key={idx} variant="outline" className="text-[10px] bg-white/50">
                             {item}
                           </Badge>
-                        ))}
+                        )) || <Badge variant="outline" className="text-[10px] bg-white/50">Vegetables</Badge>}
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-[10px] text-gray-600 bg-white/40 p-2 rounded-lg">
                         <div className="flex items-center">
                           <Timer className="h-3 w-3 mr-1 text-blue-500" />
-                          {supplier.deliveryTime}
+                          2-3 hours
                         </div>
                         <div className="flex items-center">
                           <IndianRupee className="h-3 w-3 mr-1 text-green-500" />
-                          Min Order: ₹{supplier.minOrder}
+                          Min Order: ₹{supplier.minOrderAmount || 500}
                         </div>
                       </div>
 
@@ -2030,7 +2135,7 @@ export default function BazaarBandhu() {
                           <span className="text-[10px] font-medium text-green-700">Open Now</span>
                         </div>
                         <div className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                          Trust Score: {supplier.trustScore}%
+                          Trust Score: {supplier.trustScore || 85}%
                         </div>
                       </div>
 
@@ -2047,7 +2152,12 @@ export default function BazaarBandhu() {
                           size="sm"
                           className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:scale-105 transition-transform font-bold text-xs"
                           onClick={() => {
-                            setSelectedSupplier(supplier);
+                            setSelectedSupplier({
+                              _id: supplier._id,
+                              id: supplier._id,
+                              name: supplier.businessName || supplier.fullName,
+                              minOrder: supplier.minOrderAmount || 500
+                            });
                             setShowOrderDialog(true);
                           }}
                         >

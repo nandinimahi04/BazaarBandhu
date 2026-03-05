@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -62,8 +62,38 @@ export default function Suppliers() {
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
   const [liveProducts, setLiveProducts] = useState<any[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(true);
 
   const { addToCart, itemCount, totalAmount } = useCart();
+
+  useEffect(() => {
+    fetchSuppliers();
+  }, [selectedCategory, sortBy]);
+
+  const fetchSuppliers = async () => {
+    try {
+      setIsLoadingSuppliers(true);
+      const searchParams = new URLSearchParams();
+      if (selectedCategory !== "all") {
+        searchParams.append("category", selectedCategory);
+      }
+      if (sortBy) {
+        searchParams.append("sortBy", sortBy);
+      }
+
+      const queryString = searchParams.toString();
+      const endpoint = `/suppliers${queryString ? `?${queryString}` : ""}`;
+
+      const data = await api.get(endpoint);
+      setSuppliers(data.suppliers || []);
+    } catch (err) {
+      console.error("Failed to fetch suppliers:", err);
+      toast.error("Failed to load suppliers from market");
+    } finally {
+      setIsLoadingSuppliers(false);
+    }
+  };
 
   // Fetch live products from DB when a supplier modal opens
   const openSupplierModal = async (supplier: any) => {
@@ -72,11 +102,11 @@ export default function Suppliers() {
     setLiveProducts([]);
     setIsLoadingProducts(true);
     try {
-      const data = await api.get(`/suppliers/${supplier.id}/products`);
+      const data = await api.get(`/suppliers/${supplier._id || supplier.id}/products`);
       setLiveProducts(data.products || []);
     } catch (err) {
-      console.warn("Could not fetch live products, using fallbacks:", err);
-      setLiveProducts([]); // will show fallback in modal
+      console.warn("Could not fetch live products:", err);
+      toast.error("Could not load product catalog");
     } finally {
       setIsLoadingProducts(false);
     }
@@ -84,97 +114,10 @@ export default function Suppliers() {
 
   const categories = [
     { id: "all", name: "All", count: 24, icon: <Package className="w-4 h-4 mr-1" /> },
-    { id: "vegetables", name: "Vegetables", count: 8, icon: <Tag className="w-4 h-4 mr-1" /> },
-    { id: "spices", name: "Spices", count: 6, icon: <Zap className="w-4 h-4 mr-1" /> },
-    { id: "oil", name: "Oil", count: 4, icon: <Droplets className="w-4 h-4 mr-1" /> },
-    { id: "grains", name: "Grains", count: 6, icon: <Wheat className="w-4 h-4 mr-1" /> }
-  ];
-
-  const suppliers = [
-    {
-      id: "69a0e6891822b72108f2b813",
-      name: "Ravi Traders",
-      owner: "Ravi Bhai Sharma",
-      rating: 4.8,
-      reviews: 156,
-      distance: "1.2 km",
-      verified: true,
-      location: "Solapur Main Mandi",
-      phone: "+91 98765 43210",
-      category: "vegetables",
-      speciality: ["Onion", "Tomato", "Potato"],
-      pricing: "wholesale",
-      deliveryTime: "2-3 hours",
-      minOrder: 500,
-      currentOffers: ["Bulk Discount 10%", "Free Delivery"],
-      totalOrders: 89,
-      groupOrders: 45,
-      lastDelivery: "Today Morning 9:30",
-      trustScore: 92
-    },
-    {
-      id: "67be00000000000000000002",
-      name: "Maharaj Wholesale",
-      owner: "Sunil Maharaj",
-      rating: 4.6,
-      reviews: 203,
-      distance: "2.1 km",
-      verified: true,
-      location: "New Market Area",
-      phone: "+91 87654 32109",
-      category: "spices",
-      speciality: ["Turmeric", "Red Chili", "Coriander"],
-      pricing: "competitive",
-      deliveryTime: "3-4 hours",
-      minOrder: 300,
-      currentOffers: ["15% Off for New Customers"],
-      totalOrders: 67,
-      groupOrders: 28,
-      lastDelivery: "Yesterday Evening 5:00",
-      trustScore: 88
-    },
-    {
-      id: "67be00000000000000000003",
-      name: "Fresh Mandi",
-      owner: "Ajay Kumar",
-      rating: 4.4,
-      reviews: 98,
-      distance: "3.5 km",
-      verified: false,
-      location: "Kisan Market",
-      phone: "+91 76543 21098",
-      category: "vegetables",
-      speciality: ["Green Vegetables", "Fruits"],
-      pricing: "budget",
-      deliveryTime: "4-5 hours",
-      minOrder: 200,
-      currentOffers: ["Seasonal Veg Special"],
-      totalOrders: 34,
-      groupOrders: 12,
-      lastDelivery: "2 Days Ago",
-      trustScore: 75
-    },
-    {
-      id: "67be00000000000000000004",
-      name: "Gupta Oil Mills",
-      owner: "Rajesh Gupta",
-      rating: 4.9,
-      reviews: 234,
-      distance: "1.8 km",
-      verified: true,
-      location: "Industrial Area",
-      phone: "+91 65432 10987",
-      category: "oil",
-      speciality: ["Mustard Oil", "Sunflower Oil"],
-      pricing: "premium",
-      deliveryTime: "1-2 hours",
-      minOrder: 1000,
-      currentOffers: ["5% Off on Cash Payment"],
-      totalOrders: 123,
-      groupOrders: 78,
-      lastDelivery: "Today Afternoon 2:00",
-      trustScore: 95
-    }
+    { id: "Vegetables", name: "Vegetables", count: 8, icon: <Tag className="w-4 h-4 mr-1" /> },
+    { id: "Spices", name: "Spices", count: 6, icon: <Zap className="w-4 h-4 mr-1" /> },
+    { id: "Oil", name: "Oil", count: 4, icon: <Droplets className="w-4 h-4 mr-1" /> },
+    { id: "Grains", name: "Grains", count: 6, icon: <Wheat className="w-4 h-4 mr-1" /> }
   ];
 
   const handleQuantityChange = (id: string, delta: number) => {
@@ -197,31 +140,20 @@ export default function Suppliers() {
       price: product.pricePerUnit || product.price,
       quantity: qty,
       unit: product.unit,
-      supplierId: supplier.id.toString(),
-      supplierName: supplier.name
+      supplierId: (supplier._id || supplier.id).toString(),
+      supplierName: supplier.businessName || supplier.name
     });
     toast.success(`${qty} ${product.unit} of ${product.name} added to cart ✅`);
   };
 
   const filteredSuppliers = suppliers.filter(supplier => {
-    const matchesSearch = supplier.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      supplier.speciality.some(item => item.includes(searchQuery));
-    const matchesCategory = selectedCategory === "all" || supplier.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const businessName = supplier.businessName || supplier.name || "";
+    const matchesSearch = businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (supplier.speciality && Array.isArray(supplier.speciality) && supplier.speciality.some((item: string) => item.toLowerCase().includes(searchQuery.toLowerCase())));
+    return matchesSearch;
   });
 
-  const sortedSuppliers = [...filteredSuppliers].sort((a, b) => {
-    switch (sortBy) {
-      case "rating":
-        return b.rating - a.rating;
-      case "distance":
-        return parseFloat(a.distance) - parseFloat(b.distance);
-      case "price":
-        return a.minOrder - b.minOrder;
-      default:
-        return 0;
-    }
-  });
+  const sortedSuppliers = filteredSuppliers; // Sorting is handled by backend now or could be added here
 
   return (
     <div className="min-h-screen bg-[#FDFBF7]">
@@ -311,10 +243,10 @@ export default function Suppliers() {
                         <div className="relative">
                           <Avatar className="h-16 w-16 border-2 border-orange-100 p-0.5">
                             <AvatarFallback className="bg-orange-50 text-orange-600 font-black text-xl">
-                              {supplier.name.charAt(0)}
+                              {(supplier.businessName || supplier.name || 'S').charAt(0)}
                             </AvatarFallback>
                           </Avatar>
-                          {supplier.verified && (
+                          {(supplier.verified || supplier.accountStatus === 'verified') && (
                             <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1 border-2 border-white">
                               <Shield className="h-3 w-3 text-white" />
                             </div>
@@ -322,9 +254,9 @@ export default function Suppliers() {
                         </div>
                         <div>
                           <div className="flex items-center space-x-2">
-                            <h3 className="font-black text-xl text-slate-900">{supplier.name}</h3>
+                            <h3 className="font-black text-xl text-slate-900">{supplier.businessName || supplier.name}</h3>
                           </div>
-                          <p className="text-sm font-bold text-slate-500">{supplier.owner}</p>
+                          <p className="text-sm font-bold text-slate-500">{supplier.fullName || supplier.owner || 'Verified Supplier'}</p>
                         </div>
                       </div>
                       <button className="p-2.5 bg-slate-50 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-colors">
@@ -337,21 +269,21 @@ export default function Suppliers() {
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rating</p>
                         <div className="flex items-center justify-center text-amber-500 mt-1">
                           <Star className="h-3 w-3 fill-current mr-1" />
-                          <span className="text-sm font-black text-slate-900">{supplier.rating}</span>
+                          <span className="text-sm font-black text-slate-900">{supplier.rating || 4.8}</span>
                         </div>
                       </div>
                       <div className="text-center p-3 bg-slate-50 rounded-2xl">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trust</p>
                         <div className="flex items-center justify-center text-emerald-600 mt-1">
                           <Zap className="h-3 w-3 fill-current mr-1" />
-                          <span className="text-sm font-black text-slate-900">{supplier.trustScore}%</span>
+                          <span className="text-sm font-black text-slate-900">{supplier.trustScore || 90}%</span>
                         </div>
                       </div>
                       <div className="text-center p-3 bg-slate-50 rounded-2xl">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ETA</p>
                         <div className="flex items-center justify-center text-blue-600 mt-1">
                           <Clock className="h-3 w-3 mr-1" />
-                          <span className="text-xs font-black text-slate-900">{supplier.deliveryTime.split(' ')[0]}h</span>
+                          <span className="text-xs font-black text-slate-900">{(supplier.deliveryTime || '2-4 hours').split(' ')[0]}h</span>
                         </div>
                       </div>
                     </div>
@@ -359,23 +291,27 @@ export default function Suppliers() {
                     <div className="space-y-4">
                       <div className="flex items-center space-x-2 text-slate-600">
                         <MapPin className="h-4 w-4 shrink-0 text-slate-400" />
-                        <span className="text-sm font-medium truncate">{supplier.location}</span>
+                        <span className="text-sm font-medium truncate">{supplier.address?.city || supplier.location || 'Solapur'}</span>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        {supplier.speciality.map((item, index) => (
+                        {supplier.speciality && Array.isArray(supplier.speciality) ? supplier.speciality.map((item: string, index: number) => (
                           <span key={index} className="px-3 py-1 bg-slate-100 text-[10px] font-black uppercase text-slate-500 rounded-full tracking-wider">
                             {item}
                           </span>
-                        ))}
+                        )) : (
+                          <span className="px-3 py-1 bg-slate-100 text-[10px] font-black uppercase text-slate-500 rounded-full tracking-wider">
+                            {supplier.businessCategory || 'General'}
+                          </span>
+                        )}
                       </div>
 
-                      {supplier.currentOffers.length > 0 && (
+                      {supplier.currentOffers && Array.isArray(supplier.currentOffers) && supplier.currentOffers.length > 0 && (
                         <div className="bg-orange-50/50 p-3 rounded-2xl border border-orange-100">
                           <div className="flex items-center text-orange-700 text-xs font-black uppercase tracking-widest mb-1">
                             <Zap className="h-3 w-3 mr-1" /> Today's Offer
                           </div>
-                          {supplier.currentOffers.map((offer, index) => (
+                          {supplier.currentOffers.map((offer: string, index: number) => (
                             <p key={index} className="text-xs font-bold text-orange-900/70">{offer}</p>
                           ))}
                         </div>
@@ -437,8 +373,8 @@ export default function Suppliers() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {suppliers.sort((a, b) => b.rating - a.rating).slice(0, 3).map((supplier, index) => (
-                    <div key={supplier.id} className="flex items-center space-x-4 p-3 hover:bg-slate-50 rounded-2xl transition-colors cursor-pointer">
+                  {suppliers.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 3).map((supplier, index) => (
+                    <div key={supplier._id || supplier.id} className="flex items-center space-x-4 p-3 hover:bg-slate-50 rounded-2xl transition-colors cursor-pointer" onClick={() => openSupplierModal(supplier)}>
                       <div className={cn(
                         "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black",
                         index === 0 ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-500"
@@ -446,10 +382,10 @@ export default function Suppliers() {
                         {index + 1}
                       </div>
                       <div className="flex-1">
-                        <p className="font-bold text-sm text-slate-900">{supplier.name.split(' ')[0]}</p>
+                        <p className="font-bold text-sm text-slate-900">{(supplier.businessName || supplier.name || "").split(' ')[0]}</p>
                         <div className="flex items-center space-x-1 opacity-60">
                           <Star className="h-2 w-2 fill-current" />
-                          <span className="text-[10px] font-black">{supplier.rating}</span>
+                          <span className="text-[10px] font-black">{supplier.rating || 4.5}</span>
                         </div>
                       </div>
                       <div className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center">
@@ -496,8 +432,8 @@ export default function Suppliers() {
                 <Package className="h-6 w-6 text-orange-600" />
               </div>
               <div>
-                <DialogTitle className="text-2xl font-black text-slate-900">{selectedSupplierForProducts?.name}</DialogTitle>
-                <DialogDescription className="text-slate-500 font-medium">Verified Supplier • {selectedSupplierForProducts?.deliveryTime} Delivery</DialogDescription>
+                <DialogTitle className="text-2xl font-black text-slate-900">{selectedSupplierForProducts?.businessName || selectedSupplierForProducts?.name}</DialogTitle>
+                <DialogDescription className="text-slate-500 font-medium">Verified Supplier • {selectedSupplierForProducts?.deliveryTime || '2-4h'} Delivery</DialogDescription>
               </div>
             </div>
           </DialogHeader>

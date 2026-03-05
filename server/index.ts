@@ -9,7 +9,7 @@ export function createServer() {
   return app;
 }
 
-const PORT = process.env.PORT || 5004;
+const PORT = process.env.PORT || 5005;
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('index.ts')) {
   app.listen(PORT, () => {

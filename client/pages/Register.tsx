@@ -161,6 +161,9 @@ export default function Register() {
           state: 'Maharashtra',
           pincode: formData.pincode || '413001'
         },
+        appLanguage: formData.language === 'hindi' ? 'hi' :
+          formData.language === 'marathi' ? 'mr' :
+            formData.language === 'gujarati' ? 'gu' : 'en',
         ...(role === 'supplier' ? {
           gstNumber: formData.gstNumber,
           deliveryRadius: parseInt(formData.deliveryRadius) || 10,
