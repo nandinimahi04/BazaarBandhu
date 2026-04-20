@@ -5,6 +5,7 @@
   "main": "index.ts",
   "scripts": {
     "start": "tsx main.ts",
+    "predev": "powershell -Command \"Stop-Process -Id (Get-NetTCPConnection -LocalPort 5005 -ErrorAction SilentlyContinue).OwningProcess -Force -ErrorAction SilentlyContinue || exit 0\"",
     "dev": "nodemon --exec tsx main.ts",
     "test": "jest",
     "seed": "tsx scripts/seedData.ts"
