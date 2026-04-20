@@ -910,7 +910,7 @@ orderSchema.statics.getSupplierAnalytics = function(supplierId, period = "month"
   ]);
 };
 const Order = mongoose.models.Order || mongoose.model("Order", orderSchema);
-const router$5 = express.Router();
+const router$6 = express.Router();
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
@@ -939,7 +939,7 @@ const solveIntelligently = (message, context) => {
       };
     }
   }
-  if (text.includes("supplier") || text.includes("best") || text.includes("mandi") || text.includes("विक्रेता")) {
+  if (text.includes("supplier") || text.includes("best") || text.includes("mandi") || text.includes("विक्रेता") || text.includes("rates") || text.includes("price") || text.includes("bhav") || text.includes("dam")) {
     const topSuppliers = products.sort((a, b) => a.price - b.price).slice(0, 3).map((p) => `${p.supplier} (₹${p.price}/${p.unit} for ${p.name})`);
     if (topSuppliers.length > 0) {
       return {
@@ -1006,7 +1006,7 @@ All these suppliers have 90%+ trust scores. Which one would you like to explore?
   }
   return null;
 };
-router$5.post("/", async (req, res) => {
+router$6.post("/", async (req, res) => {
   const { message, language = "en", context } = req.body;
   console.log(`[AI Agent] New Query: "${message}" (${language})`);
   const localIntelligence = solveIntelligently(message, context);
@@ -1044,11 +1044,11 @@ router$5.post("/", async (req, res) => {
     });
   }
 });
-const __filename = fileURLToPath(import.meta.url);
-const __dirname$1 = path.dirname(__filename);
-const router$4 = express.Router();
-const PYTHON_SCRIPT_PATH = path.join(__dirname$1, "..", "..", "deepseek_server.py");
-router$4.post("/", async (req, res) => {
+const __filename$1 = fileURLToPath(import.meta.url);
+const __dirname$2 = path.dirname(__filename$1);
+const router$5 = express.Router();
+const PYTHON_SCRIPT_PATH = path.join(__dirname$2, "..", "..", "deepseek_server.py");
+router$5.post("/", async (req, res) => {
   const { message, language = "english" } = req.body;
   try {
     if (!message) {
@@ -1117,7 +1117,7 @@ async function callDeepSeekModel(message, language) {
   });
 }
 createRequire(import.meta.url);
-const router$3 = express.Router();
+const router$4 = express.Router();
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || "",
   key_secret: process.env.RAZORPAY_KEY_SECRET || ""
@@ -1127,7 +1127,7 @@ if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
 } else {
   console.log("✅ Razorpay initialized with Key ID:", `${process.env.RAZORPAY_KEY_ID.substring(0, 9)}...`);
 }
-router$3.post("/create-order", async (req, res) => {
+router$4.post("/create-order", async (req, res) => {
   try {
     const { amount, currency = "INR", receipt } = req.body;
     const options = {
@@ -1152,7 +1152,7 @@ router$3.post("/create-order", async (req, res) => {
     });
   }
 });
-router$3.post("/verify", async (req, res) => {
+router$4.post("/verify", async (req, res) => {
   try {
     const {
       razorpay_order_id,
@@ -1204,7 +1204,7 @@ const authenticateToken$1 = (req, res, next) => {
     next();
   });
 };
-const router$2 = express.Router();
+const router$3 = express.Router();
 v2.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -1220,7 +1220,7 @@ const storage = new CloudinaryStorage({
   }
 });
 const upload = multer({ storage });
-router$2.post("/upload/document", upload.single("document"), async (req, res) => {
+router$3.post("/upload/document", upload.single("document"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
@@ -1236,7 +1236,7 @@ router$2.post("/upload/document", upload.single("document"), async (req, res) =>
     res.status(500).json({ error: "Failed to upload document", details: error.message });
   }
 });
-router$2.post("/auth/register", async (req, res) => {
+router$3.post("/auth/register", async (req, res) => {
   try {
     const {
       fullName,
@@ -1382,7 +1382,7 @@ router$2.post("/auth/register", async (req, res) => {
     }
   }
 });
-router$2.get("/db-health", (req, res) => {
+router$3.get("/db-health", (req, res) => {
   const status = mongoose.connection.readyState;
   const states = {
     0: "disconnected",
@@ -1396,7 +1396,7 @@ router$2.get("/db-health", (req, res) => {
     database: mongoose.connection.name
   });
 });
-router$2.post("/auth/login", async (req, res) => {
+router$3.post("/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -1446,7 +1446,7 @@ router$2.post("/auth/login", async (req, res) => {
     });
   }
 });
-router$2.get("/config/status-line", (req, res) => {
+router$3.get("/config/status-line", (req, res) => {
   const hour = (/* @__PURE__ */ new Date()).getHours();
   let statusKey = "market_open";
   if (hour < 6 || hour > 21) {
@@ -1462,7 +1462,7 @@ router$2.get("/config/status-line", (req, res) => {
     marketStatus: hour >= 6 && hour <= 21 ? "active" : "inactive"
   });
 });
-router$2.get("/suppliers", async (req, res) => {
+router$3.get("/suppliers", async (req, res) => {
   try {
     const {
       category,
@@ -1496,7 +1496,56 @@ router$2.get("/suppliers", async (req, res) => {
     });
   }
 });
-router$2.get("/suppliers/:id", async (req, res) => {
+router$3.get("/suppliers/profile", authenticateToken$1, async (req, res) => {
+  try {
+    if (req.user.userType !== "supplier") {
+      return res.status(403).json({
+        error: "Access denied. Suppliers only."
+      });
+    }
+    const supplier = await Supplier.findById(req.user.userId).select("-password");
+    if (!supplier) {
+      return res.status(404).json({ error: "Supplier not found" });
+    }
+    console.log(`[PROFILE] Returning profile for supplier: ${supplier.businessName} (ID: ${supplier._id})`);
+    res.json(supplier);
+  } catch (error) {
+    console.error("Get supplier profile error:", error);
+    res.status(500).json({
+      error: "Failed to fetch profile",
+      details: error.message
+    });
+  }
+});
+router$3.get("/suppliers/analytics", authenticateToken$1, async (req, res) => {
+  try {
+    if (req.user.userType !== "supplier") {
+      return res.status(403).json({
+        error: "Access denied. Suppliers only."
+      });
+    }
+    const { period = "month" } = req.query;
+    const analytics = await Order.getSupplierAnalytics(req.user.userId, period);
+    res.json({
+      period,
+      analytics: analytics[0] || {
+        totalOrders: 0,
+        totalSales: 0,
+        totalItemsSold: 0,
+        averageOrderValue: 0,
+        pendingOrders: 0,
+        deliveredOrders: 0
+      }
+    });
+  } catch (error) {
+    console.error("Get supplier analytics error:", error);
+    res.status(500).json({
+      error: "Failed to fetch analytics",
+      details: error.message
+    });
+  }
+});
+router$3.get("/suppliers/:id", async (req, res) => {
   try {
     const supplier = await Supplier.findById(req.params.id).select("-password").populate("groupMembers", "fullName businessName");
     if (!supplier) {
@@ -1511,7 +1560,7 @@ router$2.get("/suppliers/:id", async (req, res) => {
     });
   }
 });
-router$2.get("/suppliers/:id/products", async (req, res) => {
+router$3.get("/suppliers/:id/products", async (req, res) => {
   try {
     const supplier = await Supplier.findById(req.params.id).select("fullName businessName products rating");
     if (!supplier) {
@@ -1537,7 +1586,7 @@ router$2.get("/suppliers/:id/products", async (req, res) => {
     });
   }
 });
-router$2.get("/suppliers/profile", authenticateToken$1, async (req, res) => {
+router$3.get("/suppliers/profile", authenticateToken$1, async (req, res) => {
   try {
     if (req.user.userType !== "supplier") {
       return res.status(403).json({
@@ -1548,6 +1597,7 @@ router$2.get("/suppliers/profile", authenticateToken$1, async (req, res) => {
     if (!supplier) {
       return res.status(404).json({ error: "Supplier not found" });
     }
+    console.log(`[PROFILE] Returning profile for supplier: ${supplier.businessName} (ID: ${supplier._id})`);
     res.json(supplier);
   } catch (error) {
     console.error("Get supplier profile error:", error);
@@ -1557,7 +1607,7 @@ router$2.get("/suppliers/profile", authenticateToken$1, async (req, res) => {
     });
   }
 });
-router$2.put("/suppliers/profile", authenticateToken$1, async (req, res) => {
+router$3.put("/suppliers/profile", authenticateToken$1, async (req, res) => {
   try {
     if (req.user.userType !== "supplier") {
       return res.status(403).json({
@@ -1586,7 +1636,7 @@ router$2.put("/suppliers/profile", authenticateToken$1, async (req, res) => {
     });
   }
 });
-router$2.post("/suppliers/products", authenticateToken$1, async (req, res) => {
+router$3.post("/suppliers/products", authenticateToken$1, async (req, res) => {
   try {
     if (req.user.userType !== "supplier") {
       return res.status(403).json({
@@ -1621,7 +1671,7 @@ router$2.post("/suppliers/products", authenticateToken$1, async (req, res) => {
     });
   }
 });
-router$2.get("/suppliers/analytics", authenticateToken$1, async (req, res) => {
+router$3.get("/suppliers/analytics", authenticateToken$1, async (req, res) => {
   try {
     if (req.user.userType !== "supplier") {
       return res.status(403).json({
@@ -1649,7 +1699,7 @@ router$2.get("/suppliers/analytics", authenticateToken$1, async (req, res) => {
     });
   }
 });
-router$2.get("/vendors/profile", authenticateToken$1, async (req, res) => {
+router$3.get("/vendors/profile", authenticateToken$1, async (req, res) => {
   try {
     if (req.user.userType !== "vendor") {
       return res.status(403).json({
@@ -1672,7 +1722,7 @@ router$2.get("/vendors/profile", authenticateToken$1, async (req, res) => {
     });
   }
 });
-router$2.put("/vendors/profile", authenticateToken$1, async (req, res) => {
+router$3.put("/vendors/profile", authenticateToken$1, async (req, res) => {
   try {
     if (req.user.userType !== "vendor") {
       return res.status(403).json({
@@ -1701,7 +1751,7 @@ router$2.put("/vendors/profile", authenticateToken$1, async (req, res) => {
     });
   }
 });
-router$2.get("/vendors/analytics", authenticateToken$1, async (req, res) => {
+router$3.get("/vendors/analytics", authenticateToken$1, async (req, res) => {
   try {
     if (req.user.userType !== "vendor") {
       return res.status(403).json({
@@ -1727,7 +1777,7 @@ router$2.get("/vendors/analytics", authenticateToken$1, async (req, res) => {
     });
   }
 });
-router$2.patch("/vendors/inventory", authenticateToken$1, async (req, res) => {
+router$3.patch("/vendors/inventory", authenticateToken$1, async (req, res) => {
   try {
     if (req.user.userType !== "vendor") {
       return res.status(403).json({ error: "Access denied. Vendors only." });
@@ -1773,7 +1823,7 @@ router$2.patch("/vendors/inventory", authenticateToken$1, async (req, res) => {
     res.status(500).json({ error: "Failed to update inventory", details: error.message });
   }
 });
-router$2.delete("/vendors/inventory/:productName", authenticateToken$1, async (req, res) => {
+router$3.delete("/vendors/inventory/:productName", authenticateToken$1, async (req, res) => {
   try {
     if (req.user.userType !== "vendor") {
       return res.status(403).json({ error: "Access denied. Vendors only." });
@@ -1796,7 +1846,7 @@ router$2.delete("/vendors/inventory/:productName", authenticateToken$1, async (r
     res.status(500).json({ error: "Failed to delete item", details: error.message });
   }
 });
-router$2.post("/orders", authenticateToken$1, async (req, res) => {
+router$3.post("/orders", authenticateToken$1, async (req, res) => {
   try {
     const {
       supplierId,
@@ -1933,7 +1983,7 @@ router$2.post("/orders", authenticateToken$1, async (req, res) => {
     });
   }
 });
-router$2.get("/orders", authenticateToken$1, async (req, res) => {
+router$3.get("/orders", authenticateToken$1, async (req, res) => {
   try {
     const { status, limit = 20, page = 1 } = req.query;
     let query = {};
@@ -1964,7 +2014,7 @@ router$2.get("/orders", authenticateToken$1, async (req, res) => {
     });
   }
 });
-router$2.get("/orders/:id", authenticateToken$1, async (req, res) => {
+router$3.get("/orders/:id", authenticateToken$1, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).populate("vendor", "fullName businessName phone address").populate("supplier", "fullName businessName phone address");
     if (!order) {
@@ -1985,7 +2035,7 @@ router$2.get("/orders/:id", authenticateToken$1, async (req, res) => {
     });
   }
 });
-router$2.patch("/orders/:id/status", authenticateToken$1, async (req, res) => {
+router$3.patch("/orders/:id/status", authenticateToken$1, async (req, res) => {
   try {
     if (req.user.userType !== "supplier") {
       return res.status(403).json({
@@ -2013,7 +2063,7 @@ router$2.patch("/orders/:id/status", authenticateToken$1, async (req, res) => {
     });
   }
 });
-router$2.post("/orders/:id/rating", authenticateToken$1, async (req, res) => {
+router$3.post("/orders/:id/rating", authenticateToken$1, async (req, res) => {
   try {
     const { rating, review } = req.body;
     const order = await Order.findById(req.params.id);
@@ -2044,7 +2094,7 @@ router$2.post("/orders/:id/rating", authenticateToken$1, async (req, res) => {
     });
   }
 });
-router$2.get("/search/products", async (req, res) => {
+router$3.get("/search/products", async (req, res) => {
   try {
     const {
       query,
@@ -2113,16 +2163,16 @@ router$2.get("/search/products", async (req, res) => {
     });
   }
 });
-router$2.get("/", (req, res) => {
+router$3.get("/", (req, res) => {
   console.log("✅ /api route hit");
   res.json({ message: "Welcome to the BazaarBandhu API!" });
 });
-router$2.get("/test", (req, res) => {
+router$3.get("/test", (req, res) => {
   res.json({ message: "Test route is working!" });
 });
-router$2.use("/ai-chat", router$5);
-router$2.use("/deepseek-chat", router$4);
-router$2.use("/payments", router$3);
+router$3.use("/ai-chat", router$6);
+router$3.use("/deepseek-chat", router$5);
+router$3.use("/payments", router$4);
 const groupSchema = new mongoose.Schema({
   name: { type: String, required: true },
   category: { type: String, required: true },
@@ -2152,7 +2202,7 @@ const groupSchema = new mongoose.Schema({
 groupSchema.index({ category: 1, status: 1 });
 groupSchema.index({ location: "2dsphere" });
 const Group = mongoose.models.Group || mongoose.model("Group", groupSchema);
-const router$1 = express.Router();
+const router$2 = express.Router();
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
@@ -2167,7 +2217,7 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
-router$1.post("/voice-process", authenticateToken, async (req, res) => {
+router$2.post("/voice-process", authenticateToken, async (req, res) => {
   try {
     const { transcript } = req.body;
     const userId = req.user.userId;
@@ -2234,7 +2284,7 @@ router$1.post("/voice-process", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Voice processing failed" });
   }
 });
-router$1.get("/group-buying/nearby", authenticateToken, async (req, res) => {
+router$2.get("/group-buying/nearby", authenticateToken, async (req, res) => {
   try {
     const vendor = await Vendor.findById(req.user.userId);
     if (!vendor) return res.status(404).json({ error: "Vendor not found" });
@@ -2251,7 +2301,7 @@ router$1.get("/group-buying/nearby", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Group fetch failed" });
   }
 });
-router$1.post("/group-buying/join", authenticateToken, async (req, res) => {
+router$2.post("/group-buying/join", authenticateToken, async (req, res) => {
   try {
     const { groupId, quantity } = req.body;
     const vendor = await Vendor.findById(req.user.userId);
@@ -2264,7 +2314,7 @@ router$1.post("/group-buying/join", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Failed to join group" });
   }
 });
-router$1.post("/whatsapp-webhook", async (req, res) => {
+router$2.post("/whatsapp-webhook", async (req, res) => {
   try {
     const { From, Body } = req.body;
     const cmd = Body.toLowerCase();
@@ -2279,7 +2329,7 @@ router$1.post("/whatsapp-webhook", async (req, res) => {
     res.status(500).json({ error: "Webhook failed" });
   }
 });
-router$1.get("/recovery-status", authenticateToken, async (req, res) => {
+router$2.get("/recovery-status", authenticateToken, async (req, res) => {
   try {
     const credits = await Order.find({
       vendor: req.user.userId,
@@ -2299,10 +2349,10 @@ router$1.get("/recovery-status", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Recovery fetch failed" });
   }
 });
-router$1.post("/recovery/remind", authenticateToken, async (req, res) => {
+router$2.post("/recovery/remind", authenticateToken, async (req, res) => {
   res.json({ status: "SUCCESS", message: "Smart Reminder sent via WhatsApp" });
 });
-router$1.get("/predictions", authenticateToken, async (req, res) => {
+router$2.get("/predictions", authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
     const recentOrders = await Order.find({ vendor: userId }).limit(20);
@@ -2494,8 +2544,8 @@ const inventoryMovementSchema = new mongoose.Schema({
   timestamps: true
 });
 const InventoryMovement = mongoose.models.InventoryMovement || mongoose.model("InventoryMovement", inventoryMovementSchema);
-const router = express.Router();
-router.get("/", authenticateToken$1, async (req, res) => {
+const router$1 = express.Router();
+router$1.get("/", authenticateToken$1, async (req, res) => {
   try {
     const inventory = await Inventory.find({ vendor: req.user.userId }).sort({ status: 1, productName: 1 });
     res.json(inventory);
@@ -2503,7 +2553,7 @@ router.get("/", authenticateToken$1, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch inventory", details: error.message });
   }
 });
-router.post("/", authenticateToken$1, async (req, res) => {
+router$1.post("/", authenticateToken$1, async (req, res) => {
   try {
     const { productName, category, currentQuantity, unit, minThreshold, costPrice, expiryDate, location } = req.body;
     const newItem = new Inventory({
@@ -2534,7 +2584,7 @@ router.post("/", authenticateToken$1, async (req, res) => {
     res.status(500).json({ error: "Failed to add inventory item", details: error.message });
   }
 });
-router.patch("/:id", authenticateToken$1, async (req, res) => {
+router$1.patch("/:id", authenticateToken$1, async (req, res) => {
   try {
     const { quantityChange, type, reason, notes } = req.body;
     const item = await Inventory.findOne({ _id: req.params.id, vendor: req.user.userId });
@@ -2569,7 +2619,7 @@ router.patch("/:id", authenticateToken$1, async (req, res) => {
     res.status(500).json({ error: "Failed to update stock", details: error.message });
   }
 });
-router.get("/:id/history", authenticateToken$1, async (req, res) => {
+router$1.get("/:id/history", authenticateToken$1, async (req, res) => {
   try {
     const history = await InventoryMovement.find({
       inventoryItem: req.params.id,
@@ -2580,7 +2630,7 @@ router.get("/:id/history", authenticateToken$1, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch history", details: error.message });
   }
 });
-router.delete("/:id", authenticateToken$1, async (req, res) => {
+router$1.delete("/:id", authenticateToken$1, async (req, res) => {
   try {
     const result = await Inventory.deleteOne({ _id: req.params.id, vendor: req.user.userId });
     if (result.deletedCount === 0) {
@@ -2590,6 +2640,112 @@ router.delete("/:id", authenticateToken$1, async (req, res) => {
     res.json({ message: "Item and its history deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete item", details: error.message });
+  }
+});
+const router = express.Router();
+const supplierOnly = (req, res, next) => {
+  if (req.user?.userType !== "supplier") {
+    return res.status(403).json({ error: "Access denied. Suppliers only." });
+  }
+  next();
+};
+router.get("/", authenticateToken$1, supplierOnly, async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.user.userId).select("products");
+    if (!supplier) return res.status(404).json({ error: "Supplier not found" });
+    res.json({ products: supplier.products || [] });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch inventory", details: err.message });
+  }
+});
+router.post("/", authenticateToken$1, supplierOnly, async (req, res) => {
+  try {
+    const { name, category, unit, pricePerUnit, marketPrice, inventory, minStock, maxStock, quality, description } = req.body;
+    if (!name || !category || !unit || !pricePerUnit) {
+      return res.status(400).json({ error: "name, category, unit and pricePerUnit are required" });
+    }
+    const supplier = await Supplier.findById(req.user.userId);
+    if (!supplier) return res.status(404).json({ error: "Supplier not found" });
+    const exists = supplier.products.find(
+      (p) => p.name.toLowerCase() === name.toLowerCase() && p.category === category
+    );
+    if (exists) {
+      return res.status(409).json({ error: "A product with this name & category already exists. Use PUT to update it." });
+    }
+    supplier.products.push({
+      name,
+      category,
+      unit,
+      pricePerUnit: parseFloat(pricePerUnit),
+      marketPrice: marketPrice ? parseFloat(marketPrice) : void 0,
+      inventory: inventory ? parseFloat(inventory) : 0,
+      minStock: minStock ? parseFloat(minStock) : 10,
+      maxStock: maxStock ? parseFloat(maxStock) : 1e3,
+      quality: quality || "A",
+      description: description || "",
+      isActive: true
+    });
+    supplier.markModified("products");
+    await supplier.save();
+    const added = supplier.products[supplier.products.length - 1];
+    res.status(201).json({ message: "Product added", product: added, products: supplier.products });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to add product", details: err.message });
+  }
+});
+router.put("/:productId", authenticateToken$1, supplierOnly, async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.user.userId);
+    if (!supplier) return res.status(404).json({ error: "Supplier not found" });
+    const product = supplier.products.id(req.params.productId);
+    if (!product) return res.status(404).json({ error: "Product not found" });
+    const fields = ["name", "category", "unit", "pricePerUnit", "marketPrice", "inventory", "minStock", "maxStock", "quality", "description", "isActive"];
+    fields.forEach((f) => {
+      if (req.body[f] !== void 0) {
+        product[f] = req.body[f];
+      }
+    });
+    supplier.markModified("products");
+    await supplier.save();
+    res.json({ message: "Product updated", product, products: supplier.products });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update product", details: err.message });
+  }
+});
+router.patch("/:productId/stock", authenticateToken$1, supplierOnly, async (req, res) => {
+  try {
+    const { inventory } = req.body;
+    if (inventory === void 0 || isNaN(parseFloat(inventory))) {
+      return res.status(400).json({ error: "inventory (number) is required" });
+    }
+    const supplier = await Supplier.findById(req.user.userId);
+    if (!supplier) return res.status(404).json({ error: "Supplier not found" });
+    const product = supplier.products.id(req.params.productId);
+    if (!product) return res.status(404).json({ error: "Product not found" });
+    product.inventory = parseFloat(inventory);
+    supplier.markModified("products");
+    await supplier.save();
+    res.json({ message: "Stock updated", product, products: supplier.products });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update stock", details: err.message });
+  }
+});
+router.delete("/:productId", authenticateToken$1, supplierOnly, async (req, res) => {
+  try {
+    const supplier = await Supplier.findById(req.user.userId);
+    if (!supplier) return res.status(404).json({ error: "Supplier not found" });
+    const beforeLen = supplier.products.length;
+    supplier.products = supplier.products.filter(
+      (p) => p._id.toString() !== req.params.productId
+    );
+    if (supplier.products.length === beforeLen) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+    supplier.markModified("products");
+    await supplier.save();
+    res.json({ message: "Product removed", products: supplier.products });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete product", details: err.message });
   }
 });
 const app$1 = express();
@@ -2635,10 +2791,11 @@ const limiter = rateLimit({
   }
 });
 app$1.use("/api/", limiter);
-app$1.use("/api", router$2);
-app$1.use("/api/ai-chat", router$5);
-app$1.use("/api/features", router$1);
-app$1.use("/api/inventory", router);
+app$1.use("/api", router$3);
+app$1.use("/api/ai-chat", router$6);
+app$1.use("/api/features", router$2);
+app$1.use("/api/inventory", router$1);
+app$1.use("/api/supplier-inventory", router);
 app$1.get("/health", (req, res) => {
   res.status(200).json({
     status: "OK",
@@ -2658,8 +2815,8 @@ function createServer() {
 }
 const app = createServer();
 const port = process.env.PORT || 3e3;
-const __dirname = import.meta.dirname;
-const distPath = path.join(__dirname, "../dist");
+const __dirname$1 = import.meta.dirname;
+const distPath = path.join(__dirname$1, "../dist");
 app.use(express.static(distPath));
 app.get("*", (req, res) => {
   if (req.path.startsWith("/api/") || req.path.startsWith("/health")) {
