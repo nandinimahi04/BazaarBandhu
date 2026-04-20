@@ -59,8 +59,9 @@ app.use(cors({
 
         // In development, be more permissive with localhost
         const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+        const isRender = origin.includes('onrender.com');
 
-        if (isLocalhost || allowedOrigins.indexOf(origin) !== -1) {
+        if (isLocalhost || isRender || allowedOrigins.indexOf(origin) !== -1) {
             return callback(null, true);
         } else {
             const msg = 'The CORS policy for this site does not allow access from the specified Origin.';

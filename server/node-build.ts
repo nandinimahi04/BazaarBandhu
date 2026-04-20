@@ -48,11 +48,18 @@ app.get("*", (req, res) => {
 
   // 2. Don't serve index.html for missing assets (CSS/JS/Images)
   // This prevents the "MIME type mismatch" error
-  if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2)$/)) {
+  if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|tsx|ts)$/)) {
+    console.log(`🚫 Asset not found or blocked: ${req.path}`);
     return res.status(404).send('Asset not found');
   }
 
-  res.sendFile(path.join(distPath, "index.html"));
+  const indexHtml = path.join(distPath, "index.html");
+  if (fs.existsSync(indexHtml)) {
+    res.sendFile(indexHtml);
+  } else {
+    console.log(`❌ CRITICAL: index.html not found at ${indexHtml}`);
+    res.status(500).send('Application Error: Build files missing');
+  }
 });
 
 app.listen(port, () => {

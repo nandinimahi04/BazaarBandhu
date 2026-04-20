@@ -6,7 +6,7 @@
   "scripts": {
     "start": "tsx main.ts",
     "predev": "npx kill-port 5005",
-    "dev": "nodemon --exec tsx main.ts",
+    "dev": "nodemon --exec \"npx kill-port 5005 && tsx main.ts\"",
     "test": "jest",
     "seed": "tsx scripts/seedData.ts"
   },
