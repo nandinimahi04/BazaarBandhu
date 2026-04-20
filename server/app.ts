@@ -25,7 +25,17 @@ const app = express();
 connectDB();
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            "img-src": ["'self'", "data:", "https://res.cloudinary.com", "https://cdn-icons-png.flaticon.com", "https://images.unsplash.com", "https://*.google.com", "https://*.googleapis.com"],
+            "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+            "connect-src": ["'self'", "https://*.onrender.com", "https://api.openai.com", "https://api.razorpay.com"]
+        },
+    },
+    crossOriginResourcePolicy: false,
+}));
 app.use(morgan('dev'));
 
 const allowedOrigins = [
