@@ -29,9 +29,10 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-            "img-src": ["'self'", "data:", "https://res.cloudinary.com", "https://cdn-icons-png.flaticon.com", "https://images.unsplash.com", "https://*.google.com", "https://*.googleapis.com"],
-            "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-            "connect-src": ["'self'", "https://*.onrender.com", "https://api.openai.com", "https://api.razorpay.com", "https://cdn-icons-png.flaticon.com"]
+            "img-src": ["'self'", "data:", "https://res.cloudinary.com", "https://cdn-icons-png.flaticon.com", "https://images.unsplash.com", "https://*.google.com", "https://*.googleapis.com", "https://*.razorpay.com"],
+            "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://checkout.razorpay.com"],
+            "connect-src": ["'self'", "https://*.onrender.com", "https://api.openai.com", "https://api.razorpay.com", "https://cdn-icons-png.flaticon.com"],
+            "frame-src": ["'self'", "https://api.razorpay.com", "https://checkout.razorpay.com"]
         },
     },
     crossOriginResourcePolicy: false,
