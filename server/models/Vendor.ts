@@ -129,7 +129,7 @@ const vendorSchema = new mongoose.Schema({
     // AI Assistant Preferences
     aiAssistant: {
         isEnabled: { type: Boolean, default: true },
-        preferredLanguage: { type: String, default: 'hi' },
+        preferredLanguage: { type: String, default: 'en' },
         autoSuggestions: { type: Boolean, default: true },
         voiceCommands: { type: Boolean, default: true },
         learningFromHistory: { type: Boolean, default: true }
@@ -242,6 +242,6 @@ vendorSchema.methods.getPurchaseRecommendations = function (this: any) {
     return recommendations;
 };
 
-const Vendor = mongoose.models.Vendor || User.discriminator('vendor', vendorSchema);
+const Vendor = mongoose.models.Vendor || User.discriminator('Vendor', vendorSchema, 'vendor');
 
 export default Vendor;

@@ -1,4 +1,8 @@
 import mongoose from 'mongoose';
+// @ts-ignore
+import Vendor from './Vendor.js';
+// @ts-ignore
+import Supplier from './Supplier.js';
 
 // Order Item Schema
 const orderItemSchema = new mongoose.Schema({
@@ -346,7 +350,7 @@ orderSchema.statics.getOrdersInRange = function (startDate: Date, endDate: Date,
 };
 
 // Static method to get analytics
-orderSchema.statics.getAnalytics = function (vendorId: string, period = 'month') {
+orderSchema.statics.getAnalytics = async function (vendorId: string, period = 'month') {
     const now = new Date();
     let startDate: Date;
 
@@ -367,7 +371,19 @@ orderSchema.statics.getAnalytics = function (vendorId: string, period = 'month')
             startDate = new Date(now.setMonth(now.getMonth() - 1));
     }
 
-    return this.aggregate([
+    const dailyData = await this.aggregate([
+        { $match: { vendor: new mongoose.Types.ObjectId(vendorId), placedAt: { $gte: startDate } } },
+        {
+            $group: {
+                _id: { $dateToString: { format: "%Y-%m-%d", date: "$placedAt" } },
+                spending: { $sum: '$totalAmount' },
+                savings: { $sum: '$savedAmount' }
+            }
+        },
+        { $sort: { _id: 1 } }
+    ]);
+
+    const stats = await this.aggregate([
         { $match: { vendor: new mongoose.Types.ObjectId(vendorId), placedAt: { $gte: startDate } } },
         {
             $group: {
@@ -382,6 +398,17 @@ orderSchema.statics.getAnalytics = function (vendorId: string, period = 'month')
             }
         }
     ]);
+
+    return {
+        stats: stats[0] || {
+            totalOrders: 0,
+            totalAmount: 0,
+            totalSavings: 0,
+            averageOrderValue: 0,
+            deliveredOrders: 0
+        },
+        dailyData
+    };
 };
 
 // Static method to get supplier analytics

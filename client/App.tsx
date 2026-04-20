@@ -24,8 +24,10 @@ import Checkout from "./pages/Checkout";
 import Login from "./pages/Login";
 import Inventory from "./pages/Inventory";
 import SupplierOrders from "./pages/SupplierOrders";
+import SupplierInventory from "./pages/SupplierInventory";
 import Dashboard from "./pages/Dashboard"; // Optional: could be used instead of BazaarBandhu
 import VendorInventory from "./pages/VendorInventory";
+import AdminDashboard from "./pages/AdminDashboard";
 
 // Context
 import { CartProvider } from "./context/CartContext";
@@ -52,7 +54,9 @@ const AppContent = () => {
           path="/"
           element={
             user ? (
-              user.userType === "supplier" ? <Navigate to="/supplier-dashboard" replace /> : <Navigate to="/dashboard" replace />
+              user.userType === "admin" ? <Navigate to="/admin" replace /> :
+                user.userType === "supplier" ? <Navigate to="/supplier-dashboard" replace /> :
+                  <Navigate to="/dashboard" replace />
             ) : (
               <Landing />
             )
@@ -85,21 +89,30 @@ const AppContent = () => {
 
         {/* Feature Routes (Shared or Vendor Specific) */}
         <Route path="/profile" element={user ? <VendorProfile /> : <Navigate to="/login" replace />} />
-        <Route path="/suppliers" element={user ? <Suppliers /> : <Navigate to="/login" replace />} />
+        <Route path="/suppliers" element={<Navigate to="/dashboard?tab=bazaar" replace />} />
         <Route path="/assistant" element={user ? <AIAssistant /> : <Navigate to="/login" replace />} />
         <Route path="/chat" element={user ? <Chat /> : <Navigate to="/login" replace />} />
         <Route path="/deepseek-chat" element={user ? <DeepSeekChat /> : <Navigate to="/login" replace />} />
         <Route path="/orders" element={user ? <Orders /> : <Navigate to="/login" replace />} />
         <Route path="/inventory" element={
           user ? (
-            user.userType === "supplier" ? <Inventory /> : <VendorInventory />
+            user.userType === "supplier"
+              ? <Navigate to="/supplier-inventory" replace />
+              : <Navigate to="/dashboard?tab=inventory" replace />
           ) : (
             <Navigate to="/login" replace />
           )
         } />
         <Route path="/supplier-orders" element={user?.userType === "supplier" ? <SupplierOrders /> : <Navigate to="/login" replace />} />
+        <Route path="/supplier-inventory" element={user?.userType === "supplier" ? <SupplierInventory /> : <Navigate to="/login" replace />} />
         <Route path="/credit" element={user ? <Credit /> : <Navigate to="/login" replace />} />
         <Route path="/checkout" element={user ? <Checkout /> : <Navigate to="/login" replace />} />
+        <Route
+          path="/admin"
+          element={
+            user?.userType === "admin" ? <AdminDashboard /> : <Navigate to="/" replace />
+          }
+        />
 
         {/* Alternative Vendor Dashboard */}
         <Route path="/vendor-analytics" element={user ? <Dashboard /> : <Navigate to="/login" replace />} />

@@ -24,15 +24,31 @@ export default function Checkout() {
     const { cart, removeFromCart, updateQuantity, totalAmount, clearCart } = useCart();
     const [step, setStep] = useState(1); // 1: Review, 2: Payment, 3: Success
     const [paymentMethod, setPaymentMethod] = useState("upi");
+    const [isProcessing, setIsProcessing] = useState(false);
     const navigate = useNavigate();
+
+    const loadRazorpay = () => {
+        return new Promise((resolve) => {
+            if ((window as any).Razorpay) {
+                resolve(true);
+                return;
+            }
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
 
     const deliveryCharge = totalAmount > 2000 ? 0 : 50;
     const finalTotal = totalAmount + deliveryCharge;
 
     const handlePlaceOrder = async () => {
         try {
+            setIsProcessing(true);
             const payload = {
-                supplierId: cart[0].supplierId || "67be00000000000000000000", // Fallback if missing
+                supplierId: cart[0].supplierId || "67be00000000000000000000",
                 items: cart.map(item => ({
                     productId: item.id,
                     productName: item.name,
@@ -52,13 +68,84 @@ export default function Checkout() {
                 specialInstructions: "Please deliver near the main gate."
             };
 
-            const data = await api.post("/orders", payload);
-            setStep(3);
-            clearCart();
-            toast.success("ऑर्डर सफलतापूर्वक दिया गया!");
+            // 1. Create Order in Database
+            const orderData = await api.post("/orders", payload);
+            const order = orderData.order;
+
+            if (paymentMethod === 'cod' || paymentMethod === 'cash') {
+                setStep(3);
+                clearCart();
+                toast.success("Order placed successfully with Cash on Delivery!");
+                return;
+            }
+
+            // 2. Razorpay Payment Integration
+            const res = await loadRazorpay();
+            if (!res) {
+                toast.error("Razorpay SDK failed to load. Are you online?");
+                return;
+            }
+
+            // 3. Create Razorpay Order on server
+            const rzpOrder = await api.post("/payments/create-order", {
+                amount: finalTotal,
+                currency: "INR",
+                receipt: `receipt_${order._id}`
+            });
+
+            // 4. Open Razorpay CheckOut
+            const options = {
+                key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_YourKeyHere",
+                amount: rzpOrder.amount,
+                currency: rzpOrder.currency,
+                name: "BazaarBandhu Marketplace",
+                description: `Payment for Order #${order._id.substring(0, 8)}`,
+                order_id: rzpOrder.id,
+                handler: async function (response: any) {
+                    try {
+                        // 5. Verify payment
+                        const verifyRes = await api.post("/payments/verify", {
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature,
+                            orderId: order._id
+                        });
+
+                        if (verifyRes.status === 'success') {
+                            setStep(3);
+                            clearCart();
+                            toast.success("Payment successful and Order Placed!");
+                        } else {
+                            toast.error("Payment verification failed!");
+                        }
+                    } catch (err: any) {
+                        toast.error("Error verifying payment: " + err.message);
+                    }
+                },
+                prefill: {
+                    name: "User Name",
+                    email: "user@example.com",
+                    contact: "9999999999"
+                },
+                theme: {
+                    color: "#EA580C"
+                },
+                modal: {
+                    ondismiss: function () {
+                        setIsProcessing(false);
+                        toast.warning("Payment cancelled by user");
+                    }
+                }
+            };
+
+            const rzp1 = new (window as any).Razorpay(options);
+            rzp1.open();
+
         } catch (error: any) {
             console.error("Order placement error:", error);
-            toast.error(error.message || "ऑर्डर देने में विफल। कृपया पुनः प्रयास करें।");
+            toast.error(error.message || "Order placement failed. Please try again.");
+        } finally {
+            setIsProcessing(false);
         }
     };
 
@@ -70,7 +157,7 @@ export default function Checkout() {
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">आपका कार्ट खाली है</h2>
                 <p className="text-slate-500 mb-8">Seems like you haven't added anything to your cart yet.</p>
-                <Link to="/suppliers">
+                <Link to="/dashboard?tab=bazaar">
                     <Button className="bg-orange-600 hover:bg-orange-700 h-12 px-8 rounded-xl font-bold">
                         Start Shopping
                     </Button>
@@ -84,7 +171,7 @@ export default function Checkout() {
             <div className="max-w-4xl mx-auto px-6 pt-10">
                 {step !== 3 && (
                     <div className="flex items-center justify-between mb-8">
-                        <Link to="/suppliers" className="flex items-center text-slate-500 hover:text-orange-600 transition-colors">
+                        <Link to="/dashboard?tab=bazaar" className="flex items-center text-slate-500 hover:text-orange-600 transition-colors">
                             <ChevronLeft className="w-5 h-5 mr-1" />
                             Back to Suppliers
                         </Link>
@@ -196,8 +283,12 @@ export default function Checkout() {
                                     <p className="text-slate-500 uppercase text-xs font-bold tracking-widest">Final Amount</p>
                                     <p className="text-3xl font-extrabold text-slate-900">₹{finalTotal}</p>
                                 </div>
-                                <Button className="h-14 px-10 bg-orange-600 hover:bg-orange-700 rounded-xl text-lg font-bold shadow-lg shadow-orange-200" onClick={handlePlaceOrder}>
-                                    Place Order Now
+                                <Button
+                                    className="h-14 px-10 bg-orange-600 hover:bg-orange-700 rounded-xl text-lg font-bold shadow-lg shadow-orange-200"
+                                    onClick={handlePlaceOrder}
+                                    disabled={isProcessing}
+                                >
+                                    {isProcessing ? "Processing..." : "Place Order Now"}
                                 </Button>
                             </div>
                             <p className="text-xs text-slate-400 text-center">By clicking place order, you agree to BazaarBandhu's terms of service.</p>

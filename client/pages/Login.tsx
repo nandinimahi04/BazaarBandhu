@@ -16,6 +16,12 @@ export default function Login() {
     const navigate = useNavigate();
     const { login } = useAuth();
 
+    const getPostLoginRoute = (userType: string) => {
+        if (userType === "admin") return "/admin";
+        if (userType === "supplier") return "/supplier-dashboard";
+        return "/dashboard";
+    };
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!email || !password) {
@@ -30,7 +36,7 @@ export default function Login() {
             login(data.user, data.token);
 
             toast.success("Login successful!");
-            navigate("/dashboard");
+            navigate(getPostLoginRoute(data.user.userType));
         } catch (error: any) {
             toast.error(error.message || "Login failed");
         } finally {

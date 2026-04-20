@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 interface User {
     id: string;
     email: string;
-    userType: "vendor" | "supplier";
+    userType: "vendor" | "supplier" | "admin";
     name?: string;
     fullName?: string;
     phone?: string;

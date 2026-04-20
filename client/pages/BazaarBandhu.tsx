@@ -89,7 +89,12 @@ import {
   ShoppingBag as ShoppingBagIcon,
   MapPin as Location,
   Calendar as Cal,
-  LineChart as LucideLineChart
+  LineChart as LucideLineChart,
+  FolderOpen,
+  Snowflake,
+  ShieldCheck,
+  Edit2,
+  Trash2
 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -97,6 +102,10 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
+import { VoiceButton } from "@/components/VoiceButton";
+import { AdvancedFeatures } from "@/components/AdvancedFeatures";
+import { InstallPWA } from "@/components/InstallPWA";
+import InventoryManager from "@/components/InventoryManager";
 import {
   LineChart,
   Line,
@@ -175,6 +184,15 @@ export default function BazaarBandhu() {
   const { user, login, logout } = useAuth();
   const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabFromUrl = params.get('tab');
+    if (tabFromUrl && ['dashboard', 'ai-bandhu', 'bazaar', 'delivery', 'inventory', 'insights'].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+  }, []);
+
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -209,6 +227,25 @@ export default function BazaarBandhu() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(false);
+  const [analytics, setAnalytics] = useState<any>({ stats: {}, dailyData: [] });
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+
+  useEffect(() => {
+    if (user && activeTab === 'insights') {
+      const fetchAnalytics = async () => {
+        try {
+          setIsAnalyticsLoading(true);
+          const data = await api.get('/vendors/analytics?period=month');
+          setAnalytics(data);
+        } catch (error) {
+          console.error('Analytics fetch error:', error);
+        } finally {
+          setIsAnalyticsLoading(false);
+        }
+      };
+      fetchAnalytics();
+    }
+  }, [user, activeTab]);
 
   useEffect(() => {
     if (user && user.userType === 'vendor') {
@@ -217,6 +254,9 @@ export default function BazaarBandhu() {
         try {
           const data = await api.get('/vendors/profile');
           setVendorData(data);
+          if (data.appLanguage) {
+            setSelectedLanguage(data.appLanguage === 'english' ? 'en' : data.appLanguage === 'hindi' ? 'hi' : data.appLanguage === 'marathi' ? 'mr' : data.appLanguage);
+          }
         } catch (error) {
           console.error('Error fetching vendor profile:', error);
         }
@@ -263,16 +303,18 @@ export default function BazaarBandhu() {
       const fetchSupplierProducts = async () => {
         try {
           const data = await api.get(`/suppliers/${selectedSupplier._id}`);
-          if (data.supplier && data.supplier.products) {
-            const mappedProds = data.supplier.products.map((p: any) => ({
-              id: p._id,
+          const productsArray = data.products || (data.supplier && data.supplier.products);
+          
+          if (productsArray) {
+            const mappedProds = productsArray.map((p: any) => ({
+              id: p._id || p.id,
               name: p.name,
-              price: p.pricePerUnit,
-              marketPrice: p.marketPrice || p.pricePerUnit * 1.2,
+              price: p.pricePerUnit || p.price,
+              marketPrice: p.marketPrice || (p.pricePerUnit || p.price) * 1.2,
               unit: p.unit,
               supplier: selectedSupplier.name,
               supplierId: selectedSupplier._id,
-              image: '📦',
+              image: p.image || '📦',
               category: p.category
             }));
             setProducts(mappedProds);
@@ -342,19 +384,20 @@ export default function BazaarBandhu() {
   const [aiMessages, setAiMessages] = useState<AIMessage[]>([
     {
       id: '1',
-      text: `Welcome to BazaarBandhu! I'm your AI Business Assistant. How can I help you grow your business today?\n\nYou can ask me to:\n🛒 "Order more onions"\n📊 "Show today's market rates"\n🚚 "Track my deliveries"\n📦 "Check inventory status"`,
+      text: `👋 Welcome to BazaarBandhu! I'm your AI Business Assistant.\n\n🎤 I support voice commands — click the mic and speak!\n\nYou can ask me:\n🛒 "Buy 10kg onions" or "Order tomatoes"\n📊 "Show today's market rates"\n🚚 "Track my deliveries"\n📦 "Check my inventory"\n💰 "Show my savings"`,
       sender: 'ai',
       timestamp: new Date()
     }
   ]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Enhanced products with real-time state
   const [products, setProducts] = useState([
     {
       id: '67be11111111111111111111',
-      name: "Onions (प्याज)",
+      name: "Onions",
       price: 35,
       marketPrice: 45,
       unit: 'kg',
@@ -367,7 +410,7 @@ export default function BazaarBandhu() {
     },
     {
       id: '67be11111111111111111112',
-      name: "Potatoes (आलू)",
+      name: "Potatoes",
       price: 25,
       marketPrice: 30,
       unit: 'kg',
@@ -416,6 +459,32 @@ export default function BazaarBandhu() {
       stock: 200,
       quality: 'A+',
       image: '🍅'
+    },
+    {
+      id: '67be11111111111111111116',
+      name: "Puris",
+      price: 0.5,
+      marketPrice: 0.8,
+      unit: 'pcs',
+      trending: 'stable',
+      savings: 0.3,
+      supplier: 'Maharaj Wholesale',
+      stock: 5000,
+      quality: 'Crispy',
+      image: '🥙'
+    },
+    {
+      id: '67be11111111111111111117',
+      name: "Mint Water",
+      price: 20,
+      marketPrice: 25,
+      unit: 'Litre',
+      trending: 'stable',
+      savings: 5,
+      supplier: 'Dairy Pure',
+      stock: 100,
+      quality: 'Spicy',
+      image: '🥤'
     }
   ]);
 
@@ -484,7 +553,10 @@ export default function BazaarBandhu() {
     { id: "oil", name: getTranslation('oil', selectedLanguage), count: 4, icon: Target },
     { id: "grains", name: getTranslation('rice', selectedLanguage), count: 6, icon: Package },
     { id: "bakery", name: getTranslation('bakery', selectedLanguage), count: 4, icon: ShoppingBagIcon },
-    { id: "dry-goods", name: getTranslation('dryGoods', selectedLanguage), count: 5, icon: Clipboard }
+    { id: "dry-goods", name: getTranslation('dryGoods', selectedLanguage), count: 5, icon: Clipboard },
+    { id: "packaging", name: "Packaging", count: 3, icon: FolderOpen },
+    { id: "flour", name: "Flour", count: 4, icon: Package },
+    { id: "frozen", name: "Frozen Foods", count: 3, icon: Snowflake }
   ];
 
   const suppliersList = [
@@ -741,171 +813,358 @@ export default function BazaarBandhu() {
     })));
   }, [selectedLanguage]);
 
-  // Initialize speech recognition
+  // -------------------------------------------------------
+  // PROFESSIONAL SPEECH RECOGNITION SETUP
+  // -------------------------------------------------------
+  const finalTranscriptRef = useRef<string>('');
+  // Safe init with noop — useEffect below keeps it updated to latest sendChatMessage
+  // (avoids JS Temporal Dead Zone since sendChatMessage is declared later in the file)
+  const sendChatRef = useRef<(text: string, voice?: string) => void>(() => { });
+  useEffect(() => { sendChatRef.current = sendChatMessage; }); // no deps = runs after every render
+
+
+  const buildRecognition = (lang: string) => {
+    const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) return null;
+
+    const rec = new SpeechRecognitionClass();
+    rec.continuous = true; // Stay active until user stops (better for professional flow)
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    const langMap: any = { 'en': 'en-IN', 'hi': 'hi-IN', 'mr': 'mr-IN', 'gu': 'gu-IN' };
+    rec.lang = langMap[lang] || 'en-IN';
+
+    rec.onstart = () => {
+      finalTranscriptRef.current = '';
+      setIsListening(true);
+      setIsVoiceActive(true);
+      setVoiceTranscript('');
+    };
+
+    rec.onresult = (event: any) => {
+      let interim = '';
+      let finalText = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalText += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+      if (finalText) finalTranscriptRef.current += finalText;
+      setVoiceTranscript(finalTranscriptRef.current || interim);
+    };
+
+    rec.onerror = (event: any) => {
+      console.warn('Voice recognition error:', event.error);
+      setIsListening(false);
+      setIsVoiceActive(false);
+      setVoiceTranscript('');
+      if (event.error === 'not-allowed') {
+        toast.error('🎤 Microphone access denied. Please allow microphone in browser settings.');
+      } else if (event.error === 'no-speech') {
+        toast.info('No speech detected. Please try again.');
+      }
+    };
+
+    rec.onend = () => {
+      setIsListening(false);
+      setIsVoiceActive(false);
+      const spoken = finalTranscriptRef.current.trim();
+      finalTranscriptRef.current = '';
+      setVoiceTranscript('');
+      if (spoken) {
+        setCurrentMessage(spoken);
+        // Use ref so we always call the latest sendChatMessage (no stale closure)
+        setTimeout(() => sendChatRef.current(spoken, spoken), 300);
+      }
+    };
+
+    return rec;
+  };
+
+  // Build recognition on mount and whenever language changes
   useEffect(() => {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      recognition.current = new SpeechRecognition();
-      recognition.current.continuous = false;
-      recognition.current.interimResults = true;
-      recognition.current.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'mr' ? 'mr-IN' : 'en-IN';
-
-      recognition.current.onresult = (event: any) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
-        }
-        setVoiceTranscript(transcript);
-
-        if (event.results[event.results.length - 1].isFinal) {
-          setCurrentMessage(transcript);
-          setIsListening(false);
-          setIsVoiceActive(false);
-          // Auto-send the message after a short delay
-          setTimeout(() => handleAIMessage(transcript, transcript), 500);
-        }
-      };
-
-      recognition.current.onstart = () => {
-        setIsListening(true);
-        setIsVoiceActive(true);
-      };
-
-      recognition.current.onerror = (error: any) => {
-        console.log('Speech recognition error:', error);
-        setIsListening(false);
-        setIsVoiceActive(false);
-        setVoiceTranscript('');
-      };
-
-      recognition.current.onend = () => {
-        setIsListening(false);
-        setIsVoiceActive(false);
-        setVoiceTranscript('');
-      };
-    }
+    const rec = buildRecognition(selectedLanguage);
+    if (rec) recognition.current = rec;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLanguage]);
 
   const handleVoiceToggle = () => {
-    if (!recognition.current) {
-      alert('Voice recognition not supported in this browser');
+    const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) {
+      toast.error('🎤 Voice not supported. Please use Chrome or Edge.');
       return;
     }
 
     if (isListening) {
-      recognition.current.stop();
-      setIsListening(false);
-      setIsVoiceActive(false);
-      setVoiceTranscript('');
-    } else {
-      setIsVoiceActive(true);
-      setIsListening(true);
-      setVoiceTranscript('');
+      // Stop gracefully — onend will fire and send the transcript
+      recognition.current?.stop();
+      return;
+    }
+
+    // Automatically switch to the AI tab so user can see the chatbot's work
+    setActiveTab('ai-bandhu');
+
+    // Always build a fresh recognition instance on each mic press
+    // This avoids the "already started" / stuck state that Chrome can cause
+    const freshRec = buildRecognition(selectedLanguage);
+    if (!freshRec) return;
+    recognition.current = freshRec;
+
+    try {
       recognition.current.start();
+    } catch (e: any) {
+      console.warn('Recognition start error:', e);
+      toast.error('🎤 Could not start microphone. Please try again.');
     }
   };
 
-  const handleAIMessage = (text: string, voiceInput?: string) => {
+  // -------------------------------------------------------
+  // TEXT-TO-SPEECH HELPER
+  // -------------------------------------------------------
+  const speakText = (text: string) => {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const cleaned = text.replace(/[#*`✅🏪💰🔢💡⭐🚚🤖📊📦🔴🟡🟢⚠️👋🛒🎤🍅🥔🧅🍯🥗🥙🥤]/g, '').replace(/\n/g, ' ').trim();
+    if (!cleaned) return;
+    const utterance = new SpeechSynthesisUtterance(cleaned);
+    const langMap: any = { 'en': 'en-IN', 'hi': 'hi-IN', 'mr': 'mr-IN', 'gu': 'gu-IN' };
+    utterance.lang = langMap[selectedLanguage] || 'en-IN';
+    utterance.rate = 0.9;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    // Chrome bug: needs a short delay and resume to ensure it speaks
+    setTimeout(() => {
+      window.speechSynthesis.resume();
+      window.speechSynthesis.speak(utterance);
+    }, 100);
+  };
+
+  // -------------------------------------------------------
+  // CORE CHAT ENGINE (voice-safe: uses refs, not stale closure)
+  // -------------------------------------------------------
+  const productsRef = useRef(products);
+  const deliveriesRef = useRef(activeDeliveries);
+  const quickStatsRef = useRef(quickStats);
+  const vendorDataRef = useRef(vendorData);
+  const selectedLangRef = useRef(selectedLanguage);
+  const aiMessagesRef = useRef(aiMessages);
+
+  useEffect(() => { productsRef.current = products; }, [products]);
+  useEffect(() => { deliveriesRef.current = activeDeliveries; }, [activeDeliveries]);
+  useEffect(() => { quickStatsRef.current = quickStats; }, [quickStats]);
+  useEffect(() => { vendorDataRef.current = vendorData; }, [vendorData]);
+  useEffect(() => { selectedLangRef.current = selectedLanguage; }, [selectedLanguage]);
+  useEffect(() => { aiMessagesRef.current = aiMessages; }, [aiMessages]);
+
+  const sendChatMessage = async (text: string, voiceInput?: string) => {
     if (!text.trim()) return;
+
+    const lang = selectedLangRef.current;
+    const prods = productsRef.current;
+    const deliveries = deliveriesRef.current;
+    const stats = quickStatsRef.current;
+    const inv = vendorDataRef.current;
+    const prevMessages = aiMessagesRef.current;
 
     const userMessage: AIMessage = {
       id: Date.now().toString(),
       text,
       sender: 'user',
       timestamp: new Date(),
-      voiceInput: voiceInput
+      voiceInput
     };
 
     setAiMessages(prev => [...prev, userMessage]);
     setCurrentMessage('');
     setIsAiTyping(true);
 
-    setTimeout(() => {
-      let response = '';
-      let action: any;
+    const addAIReply = (replyText: string, action?: any) => {
+      const msg: AIMessage = {
+        id: (Date.now() + 1).toString(),
+        text: replyText,
+        sender: 'ai',
+        timestamp: new Date(),
+        action
+      };
+      setAiMessages(prev => [...prev, msg]);
+      // Speak the response
+      speakText(replyText);
+    };
+
+    try {
       const lowerText = text.toLowerCase();
 
-      // Purchase Confirmation Logic
-      const lastAiMessage = aiMessages[aiMessages.length - 1];
-      if (lastAiMessage?.sender === 'ai' && lastAiMessage.action?.type === 'buy' &&
-        (lowerText === 'yes' || lowerText === 'हां' || lowerText === 'हो' || lowerText.includes('pay') || lowerText.includes('place'))) {
+      // --- Purchase Confirmation ---
+      const lastAiMsg = prevMessages[prevMessages.length - 1];
+      if (lastAiMsg?.sender === 'ai' && lastAiMsg.action?.type === 'buy' &&
+        (lowerText === 'yes' || lowerText === 'हां' || lowerText === 'हो' || lowerText === 'ho' ||
+          lowerText.includes('confirm') || lowerText.includes('pay') || lowerText.includes('place') ||
+          lowerText.includes('हाँ') || lowerText.includes('ok'))) {
 
-        response = `🚀 Great choice! मैं आपके लिए पेमेंट गेटवे खोल रहा हूँ।\n\nOrder for ${lastAiMessage.action.quantity} ${lastAiMessage.action.product} from ${lastAiMessage.action.supplier} is ready for settlement.`;
-        const product = products.find(p => p.name.toLowerCase().includes(lastAiMessage.action?.product?.toLowerCase() || '')) || products[0];
-        const quantityMatch = lastAiMessage.action?.quantity?.match(/\d+/);
-        const quantityNum = quantityMatch ? parseInt(quantityMatch[0]) : 1;
+        const confirmText = lang === 'hi'
+          ? `🚀 बढ़िया! ${lastAiMsg.action.quantity} ${lastAiMsg.action.product} का ऑर्डर confirm हो गया। Payment gateway खुल रही है।`
+          : `🚀 Confirmed! Opening payment for ${lastAiMsg.action.quantity} ${lastAiMsg.action.product} from ${lastAiMsg.action.supplier}.`;
 
-        handleBuyClick(product, quantityNum);
-
-        const aiMessage: AIMessage = {
-          id: (Date.now() + 1).toString(),
-          text: response,
-          sender: 'ai',
-          timestamp: new Date()
-        };
-        setAiMessages(prev => [...prev, aiMessage]);
+        const product = prods.find(p => p.name.toLowerCase().includes(lastAiMsg.action?.product?.toLowerCase() || '')) || prods[0];
+        const qtyMatch = lastAiMsg.action?.quantity?.match(/\d+/);
+        handleBuyClick(product, qtyMatch ? parseInt(qtyMatch[0]) : 1);
+        addAIReply(confirmText);
         setIsAiTyping(false);
         return;
       }
 
-      // Main NLP Logic
-      if (lowerText.includes('buy') || lowerText.includes('order')) {
-        const quantityMatch = text.match(/\d+/);
-        const quantity = quantityMatch ? quantityMatch[0] : '10';
-        const productMatch = products.find(p =>
-          lowerText.includes(p.name.toLowerCase()) ||
-          p.id.toLowerCase() === lowerText.split(' ').find(word => word.startsWith('p'))
-        );
+      // --- 1. TRY INTELLIGENT BACKEND FIRST (Real Agent) ---
+      let res: any = null;
+      try {
+        res = await api.post('/ai-chat', {
+          message: text,
+          language: lang,
+          context: {
+            inventory: inv,
+            products: prods.map(p => ({
+              id: p.id,
+              name: p.name,
+              price: p.price,
+              marketPrice: p.marketPrice,
+              unit: p.unit,
+              supplier: p.supplier,
+              stock: p.stock
+            })),
+            activeDeliveries: deliveries.map(d => ({
+              orderId: d.orderId,
+              status: d.status,
+              eta: d.estimatedTime
+            })),
+            shopStats: stats,
+            user: {
+              fullName: (user as any)?.fullName,
+              businessName: (inv as any)?.businessName,
+              category: (inv as any)?.businessCategory
+            }
+          }
+        });
+      } catch (err) {
+        console.error("AI Backend fallback triggered:", err);
+      }
 
-        if (productMatch) {
-          const total = parseInt(quantity) * productMatch.price;
-          const totalSavings = parseInt(quantity) * (productMatch.marketPrice - productMatch.price);
-          response = `✅ Perfect! I have found a deal for ${quantity}${productMatch.unit} ${productMatch.name}:\n\n🏪 Supplier: ${productMatch.supplier}\n💰 Rate: ₹${productMatch.price}/${productMatch.unit}\n🔢 Total: ₹${total}\n💡 Savings: ₹${totalSavings}\n🚚 ETA: 20-30 mins\n\nShall I open payment for this order?`;
-          action = { type: 'buy', product: productMatch.name, quantity: `${quantity}${productMatch.unit}`, supplier: productMatch.supplier, price: total, savings: totalSavings };
-        } else {
-          response = `🤖 I couldn't find that item. I have **Puris, Mint Water, Chutney, and Potatoes** at wholesale rates. Want to see them?`;
+      if (res?.reply) {
+        addAIReply(res.reply, res.action || null);
+        if (res.action?.type === 'buy') {
+          setTimeout(() => {
+            const tipText = lang === 'hi'
+              ? '💡 आप "Confirm" बोलकर अभी ऑर्डर कर सकते हैं!'
+              : '💡 You can say "Confirm" to place the order right now!';
+            setAiMessages(prev => [...prev, { id: Date.now().toString(), text: tipText, sender: 'ai', timestamp: new Date() }]);
+          }, 1500);
         }
-      } else if (lowerText.includes('price') || lowerText.includes('rate')) {
-        const rates = products.map(p => `${p.image} ${p.name}: ₹${p.price}/${p.unit} (Save ₹${p.marketPrice - p.price})`).join('\n');
-        response = `📊 **Live Market Rates:**\n\n${rates}\n\nShall I buy anything for you?`;
-      } else if (lowerText.includes('delivery') || lowerText.includes('track')) {
-        const recent = activeDeliveries[0];
-        response = `🚚 **Delivery Status:**\n📦 Order #${recent.orderId}\n👤 Driver: ${recent.driver.name}\n📍 Loc: ${recent.currentLocation}\n⏰ ETA: ${recent.estimatedTime}`;
-      } else if (lowerText.includes('stock') || lowerText.includes('inventory')) {
-        const low = products.filter(p => p.stock < 15);
-        response = `📦 **Inventory Status:**\n${low.map(p => `🔴 Low: ${p.name} (${p.stock}${p.unit})`).join('\n')}\n${products.filter(p => p.stock >= 15).map(p => `🟢 Ok: ${p.name}`).join('\n')}`;
-      } else if (lowerText.includes('how to') || lowerText.includes('tips') || lowerText.includes('profit')) {
-        response = `📈 **Business Growth Hub:**\n1. Prepare spicy water 6h early.\n2. Bulk potato orders save 15%.\n3. Every 5th customer gets a free puri!`;
-      } else if (lowerText.includes('report') || lowerText.includes('summary')) {
-        response = `📊 **Business Summary Report**\n\n💰 Total Sales: ₹${(quickStats.todaysSavings * 4).toLocaleString()}\n💡 Total Savings: ₹${quickStats.todaysSavings.toLocaleString()}\n📦 Inventory Health: ${vendorData?.currentInventory?.length || 0} items active\n🚚 Active Deliveries: ${quickStats.activeDeliveries}\n\n*Everything looks great with your business today!*`;
+        setIsAiTyping(false);
+        return;
+      }
+
+      // --- 2. LOCAL FALLBACKS (ONLY IF BACKEND FAILS) ---
+      // --- Buy / Order intent (Simple fallback) ---
+      const buyKeywords = ['buy', 'order', 'purchase', 'need', 'खरीद', 'ऑर्डर', 'चाहिए'];
+      const hasBuyIntent = buyKeywords.some(k => lowerText.includes(k));
+
+      if (hasBuyIntent) {
+        const matchedProduct = prods.find(p => 
+          lowerText.includes(p.name.toLowerCase()) || 
+          p.name.toLowerCase().split(' ').some(word => word.length > 2 && lowerText.includes(word))
+        );
+        if (matchedProduct) {
+          const replyText = lang === 'hi'
+            ? `🛒 मैं आपके लिए ${matchedProduct.name} का ऑर्डर तैयार कर सकता हूँ। क्या आप confirm करना चाहते हैं?`
+            : `🛒 I can prepare an order for ${matchedProduct.name}. Would you like to confirm?`;
+
+          addAIReply(replyText, {
+            type: 'buy',
+            product: matchedProduct.name,
+            quantity: `10${matchedProduct.unit}`,
+            supplier: matchedProduct.supplier,
+            price: matchedProduct.price * 10,
+            savings: (matchedProduct.marketPrice - matchedProduct.price) * 10
+          });
+          setIsAiTyping(false);
+          return;
+        }
+      }
+
+      // --- Smart local fallback ---
+      let fallbackResponse = '';
+      if (lowerText.match(/rate|price|today|भाव|रेट|दाम/)) {
+        const topProducts = prods.slice(0, 6).map(p =>
+          `• ${p.name}: ₹${p.price}/${p.unit}  (Market: ₹${p.marketPrice}/${p.unit})  → Save ₹${p.marketPrice - p.price}`
+        ).join('\n');
+        fallbackResponse = lang === 'hi'
+          ? `📊 आज के बाज़ार भाव:\n\n${topProducts}\n\n💰 BazaarBandhu पर market से सस्ता मिलता है!`
+          : `📊 Today's Market Rates:\n\n${topProducts}\n\n💰 BazaarBandhu prices beat the market every day!`;
+
+      } else if (lowerText.match(/inventory|stock|इन्वेंटरी|स्टॉक|सामान/)) {
+        const invItems = (inv as any)?.currentInventory || [];
+        if (invItems.length > 0) {
+          const stockList = invItems.slice(0, 6).map((item: any) =>
+            `• ${item.productName}: ${item.quantity} ${item.unit} ${item.quantity < 5 ? '⚠️ LOW' : '✅'}`
+          ).join('\n');
+          fallbackResponse = lang === 'hi'
+            ? `📦 आपका मौजूदा स्टॉक:\n\n${stockList}`
+            : `📦 Current Inventory Status:\n\n${stockList}`;
+        } else {
+          fallbackResponse = lang === 'hi'
+            ? '📦 आपका इन्वेंटरी खाली है। Inventory tab पर जाकर items add करें!'
+            : '📦 Your inventory is empty. Go to the Inventory tab to add items!';
+        }
+
+      } else if (lowerText.match(/order|delivery|track|डिलीवरी|ऑर्डर|ट्रैक/)) {
+        if (deliveries.length > 0) {
+          const info = deliveries.map(d =>
+            `• Order #${d.orderId}: ${d.status.replace(/_/g, ' ')} — ETA: ${d.estimatedTime}`
+          ).join('\n');
+          fallbackResponse = lang === 'hi'
+            ? `🚚 Active Deliveries:\n\n${info}`
+            : `🚚 Active Deliveries:\n\n${info}`;
+        } else {
+          fallbackResponse = lang === 'hi'
+            ? '🚚 अभी कोई active delivery नहीं है। Bazaar tab से order करें!'
+            : '🚚 No active deliveries right now. Place an order from the Bazaar tab!';
+        }
+
+      } else if (lowerText.match(/saving|save|बचत|पैसे/)) {
+        fallbackResponse = lang === 'hi'
+          ? `💰 आपकी बचत:\n\n• आज की बचत: ₹${stats.todaysSavings}\n• कुल ऑर्डर: ${stats.totalOrders}\n• Active Deliveries: ${stats.activeDeliveries}\n\nBazaarBandhu से market rate पर हमेशा बचत होती है!`
+          : `💰 Your Savings Summary:\n\n• Today's Savings: ₹${stats.todaysSavings}\n• Total Orders: ${stats.totalOrders}\n• Active Deliveries: ${stats.activeDeliveries}\n\nKeep ordering to maximize savings!`;
+
+      } else if (lowerText.match(/\bhello\b|\bhi\b|\bनमस्ते\b|\bनमस्कार\b/i)) {
+        const name = (user as any)?.fullName?.split(' ')[0] || 'there';
+        fallbackResponse = lang === 'hi'
+          ? `👋 नमस्ते ${name} जी! मैं BazaarBandhu AI हूँ।\n\nमैं आपकी इन बातों में मदद कर सकता हूँ:\n📊 \"आज के रेट दिखाओ\"\n📦 \"इन्वेंटरी चेक करो\"\n🚚 \"डिलीवरी ट्रैक करो\"\n🛒 \"10 किलो प्याज खरीदें\"\n💰 \"मेरी बचत दिखाओ\"`
+          : `👋 Hello ${name}! I'm your BazaarBandhu AI Assistant.\n\nI can help you with:\n📊 "Show today's rates"\n📦 "Check inventory"\n🚚 "Track deliveries"\n🛒 "Buy 10kg onions"\n💰 "Show my savings"`;
       } else {
-        response = `🤖 I heard: "${voiceInput || text}"\n\nTry:\n🛒 "Buy 20 packs puris"\n📊 "Show my business report"\n🚚 "Track order"`;
+        fallbackResponse = lang === 'hi'
+          ? `🤖 मैं समझ नहीं पाया। आप यह try करें:\n• "आज के रेट दिखाओ"\n• "10 किलो टमाटर खरीदें"\n• "इन्वेंटरी चेक करो"\n• "डिलीवरी ट्रैक करो"`
+          : `🤖 I didn't quite catch that. Try:\n• "Show today's rates"\n• "Buy 10kg tomatoes"\n• "Check my inventory"\n• "Track my delivery"`;
       }
 
-      const aiMessage: AIMessage = { id: (Date.now() + 1).toString(), text: response, sender: 'ai', timestamp: new Date(), action };
-      setAiMessages(prev => [...prev, aiMessage]);
+      addAIReply(fallbackResponse);
+
+    } catch (error) {
+      console.error('Chat error:', error);
+      addAIReply('⚠️ Something went wrong. Please try again.');
+    } finally {
       setIsAiTyping(false);
-
-      if (action?.type === 'buy') {
-        setTimeout(() => {
-          setAiMessages(prev => [...prev, {
-            id: Date.now().toString(),
-            text: "💡 Pro Tip: Since you're ordering vegetables, Ravi Traders is offering a 5% discount if you pay via UPI today!",
-            sender: 'ai',
-            timestamp: new Date()
-          }]);
-        }, 1500);
-      }
-
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const cleanText = response.replace(/[#*`✅🏪💰🔢💡⭐🚚🤖📊📦🔴🟡🟢⚠️]/g, '').trim();
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = 'en-US';
-        window.speechSynthesis.speak(utterance);
-      }
-    }, 1500);
+    }
   };
+
+  // Alias for UI button clicks
+  const handleAIMessage = sendChatMessage;
+
+
+
+
 
   const handleBuyClick = (product: any, quantity: number = 1) => {
     const total = product.price * quantity;
@@ -1208,6 +1467,80 @@ export default function BazaarBandhu() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [aiMessages]);
 
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const handleStatusChange = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', handleStatusChange);
+    window.addEventListener('offline', handleStatusChange);
+    return () => {
+      window.removeEventListener('online', handleStatusChange);
+      window.removeEventListener('offline', handleStatusChange);
+    };
+  }, []);
+
+  const submitInventoryUpdate = async () => {
+    try {
+      if (!newInventoryItem.productName || !newInventoryItem.quantity || !newInventoryItem.costPrice || !newInventoryItem.category) {
+        toast.error("Please fill all required fields including Category");
+        return;
+      }
+
+      const payload = {
+        product: {
+          ...newInventoryItem,
+          quantity: Number(newInventoryItem.quantity),
+          costPrice: Number(newInventoryItem.costPrice),
+        },
+      };
+
+      await api.patch('/vendors/inventory', payload);
+      toast.success("Inventory updated successfully!");
+      setShowInventoryModal(false);
+
+      const data = await api.get('/vendors/profile');
+      setVendorData(data);
+      setNewInventoryItem({ productName: '', category: '', quantity: '', unit: 'kg', costPrice: '' });
+    } catch (error: any) {
+      toast.error(`Error: ${error.message}`);
+    }
+  };
+
+  const addSupplierProductToCart = (product: any, qty: number) => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      quantity: qty,
+      unit: product.unit,
+      supplierId: selectedSupplier?.id?.toString() || selectedSupplier?._id?.toString() || '0',
+      supplierName: selectedSupplier?.name || 'Supplier',
+    });
+    toast.success(`Added ${qty}${product.unit} ${product.name} to cart`);
+  };
+
+  const addMinimumOrderLot = () => {
+    addToCart({
+      id: 'gen-1',
+      name: 'General Supplies',
+      price: selectedSupplier?.minOrder || 500,
+      quantity: 1,
+      unit: 'lot',
+      supplierId: selectedSupplier?.id?.toString() || selectedSupplier?._id?.toString() || '0',
+      supplierName: selectedSupplier?.name || 'Supplier',
+    });
+    toast.success("Added minimum order lot to cart");
+  };
+
+  const proceedToCheckout = () => {
+    if (itemCount > 0) {
+      navigate('/checkout');
+      toast.success("Proceeding to cart for payment...");
+      return;
+    }
+
+    toast.info("Your cart is empty. Please add some items first.");
+  };
+
   const unreadNotifications = notifications.filter(n => !n.read);
 
   return (
@@ -1221,8 +1554,11 @@ export default function BazaarBandhu() {
                 <Handshake className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent bazaar-glow">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent bazaar-glow flex items-center gap-2">
                   BazaarBandhu
+                  {!isOnline && (
+                    <Badge variant="outline" className="text-[8px] bg-red-50 text-red-600 border-red-200 animate-pulse">OFFLINE MODE</Badge>
+                  )}
                 </h1>
                 <p className="text-sm font-medium bg-gradient-to-r from-green-700 to-blue-700 bg-clip-text text-transparent italic">
                   {headerStatusKey ? getTranslation('headerStatus', selectedLanguage) : '...'}
@@ -1232,7 +1568,20 @@ export default function BazaarBandhu() {
 
             <div className="flex items-center space-x-4">
               {/* Language Selector */}
-              <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+              <Select
+                value={selectedLanguage}
+                onValueChange={async (value) => {
+                  setSelectedLanguage(value);
+                  if (user) {
+                    try {
+                      await api.put('/vendors/profile', { appLanguage: value });
+                      toast.success(value === 'hi' ? 'भाषा बदल दी गई है' : 'Language changed successfully');
+                    } catch (error) {
+                      console.error('Failed to update language:', error);
+                    }
+                  }
+                }}
+              >
                 <SelectTrigger className="w-32 glow-border fade-in">
                   <Languages className="h-4 w-4 mr-2" />
                   <SelectValue />
@@ -1336,6 +1685,7 @@ export default function BazaarBandhu() {
       </header>
 
       <div className="container mx-auto px-4 py-6">
+        <InstallPWA />
         {/* Voice Assistant Alert */}
         {isListening && (
           <Card className="mb-6 gradient-card animated-border border-green-200 fade-in">
@@ -1430,16 +1780,39 @@ export default function BazaarBandhu() {
           </Card>
         </div>
 
+        {user?.userType === 'admin' && (
+          <Card className="marketplace-shadow border-none bg-slate-900 overflow-hidden mb-6">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="bg-slate-800 p-2 rounded-xl">
+                  <ShieldCheck className="h-6 w-6 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold">System Admin Panel</h3>
+                  <p className="text-slate-400 text-xs">Manage vendors, suppliers, and system-wide settings.</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="bg-slate-800 border-slate-700 text-white hover:bg-slate-700"
+                onClick={() => navigate('/admin')}
+              >
+                Go to Admin Dashboard
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-white/60 backdrop-blur-sm marketplace-shadow">
+          <TabsList className="grid w-full grid-cols-6 bg-white/60 backdrop-blur-sm marketplace-shadow">
             <TabsTrigger value="dashboard" className="glow-border">
               <Home className="h-4 w-4 mr-2" />
               {getTranslation('dashboard', selectedLanguage)}
             </TabsTrigger>
             <TabsTrigger value="ai-bandhu" className="glow-border">
               <Bot className="h-4 w-4 mr-2" />
-              AI Bandhu
+              Saarthi Assistant
             </TabsTrigger>
             <TabsTrigger value="bazaar" className="glow-border">
               <Store className="h-4 w-4 mr-2" />
@@ -1449,6 +1822,10 @@ export default function BazaarBandhu() {
               <Truck className="h-4 w-4 mr-2" />
               {getTranslation('activeDeliveries', selectedLanguage)}
             </TabsTrigger>
+            <TabsTrigger value="inventory" className="glow-border">
+              <Package className="h-4 w-4 mr-2" />
+              Stock Management
+            </TabsTrigger>
             <TabsTrigger value="insights" className="glow-border">
               <LucideLineChart className="h-4 w-4 mr-2" />
               {getTranslation('insights', selectedLanguage)}
@@ -1457,20 +1834,93 @@ export default function BazaarBandhu() {
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Smart Purchase Interface */}
-              <div className="lg:col-span-2">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {/* 🎯 Hyper-Personalisation: Recommended for You */}
+              <div className="lg:col-span-1 space-y-6">
+                <Card className="gradient-card marketplace-shadow overflow-hidden border-orange-100">
+                  <CardHeader className="bg-orange-50/50 pb-2">
+                    <CardTitle className="flex items-center space-x-2 text-sm">
+                      <Target className="h-4 w-4 text-orange-600" />
+                      <span>Hyper-Personalised Picks</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 space-y-3">
+                    <p className="text-[10px] text-orange-800 font-medium bg-orange-100/50 p-1.5 rounded-lg border border-orange-200">
+                      Based on your {vendorData?.businessCategory || 'street food'} sales patterns
+                    </p>
+                    {products.slice(0, 3).map((product, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/40 transition-colors border border-transparent hover:border-orange-100">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xl">{product.image}</span>
+                          <div>
+                            <p className="text-xs font-bold">{product.name}</p>
+                            <p className="text-[10px] text-gray-500">₹{product.price}/{product.unit}</p>
+                          </div>
+                        </div>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 text-orange-600" onClick={() => handleBuyClick(product, 1)}>
+                          <ShoppingCart className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* 📦 Supply Chain Resilience: Trust Score */}
+                <Card className="gradient-card marketplace-shadow border-blue-100">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center space-x-2 text-sm">
+                      <Shield className="h-4 w-4 text-blue-600" />
+                      <span>Supply Chain Resilience</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-[10px] mb-1">
+                        <span className="font-bold text-gray-600">Vendor Reliability</span>
+                        <span className="font-bold text-blue-600">{quickStats.trustScore}%</span>
+                      </div>
+                      <Progress value={quickStats.trustScore} className="h-1.5 bg-blue-50" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      <div className="p-2 bg-blue-50 rounded-lg">
+                        <p className="text-gray-500 uppercase font-bold text-[8px]">On-Time Rate</p>
+                        <p className="text-blue-700 font-bold">{quickStats.deliverySuccess}%</p>
+                      </div>
+                      <div className="p-2 bg-green-50 rounded-lg">
+                        <p className="text-gray-500 uppercase font-bold text-[8px]">Alt suppliers</p>
+                        <p className="text-green-700 font-bold">4 Linked</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Central Area: Unified Commerce & AI Merchandising */}
+              <div className="lg:col-span-2 space-y-6">
+  
+                {/* 🛒 Unified Commerce: Smart Purchase Hub */}
                 <Card className="gradient-card marketplace-shadow">
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
-                      <ShoppingCart className="h-5 w-5 text-green-600" />
-                      <span>Smart Purchase Hub</span>
-                      <Badge className="bg-green-100 text-green-800">AI Powered</Badge>
+                      <Handshake className="h-5 w-5 text-green-600" />
+                      <span>Unified Commerce Hub</span>
+                      <Badge className="bg-green-100 text-green-800">Connected Marketplace</Badge>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                      {products.map((product, index) => (
+                      {products.filter(p => {
+                        // Personalize Smart Purchase Hub based on business category
+                        if (!vendorData?.businessCategory) return true;
+                        const category = vendorData.businessCategory.toLowerCase();
+                        if (category.includes('pani puri')) {
+                          return ['onions', 'potatoes', 'tamarind chutney', 'mint water', 'puris'].includes(p.name.toLowerCase());
+                        }
+                        if (category.includes('vada pav')) {
+                          return ['potatoes', 'oil', 'flour', 'green chilies'].includes(p.name.toLowerCase());
+                        }
+                        return true; // Show all if no specific match
+                      }).slice(0, 4).map((product, index) => (
                         <div key={index} className="bg-white/60 backdrop-blur-sm p-4 rounded-xl border marketplace-floating">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center space-x-2">
@@ -1526,14 +1976,14 @@ export default function BazaarBandhu() {
                       onClick={() => setActiveTab('ai-bandhu')}
                     >
                       <Bot className="h-4 w-4 mr-2" />
-                      Ask AI Bandhu to Buy Smart
+                      Collaborate with Saarthi Assistant
                     </Button>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Right Column: Alerts & Inventory */}
-              <div className="space-y-6">
+              {/* Right Column: Alerts & Automation */}
+              <div className="space-y-6 lg:col-span-1">
                 {/* Business Alerts */}
                 <Card className="gradient-card marketplace-shadow">
                   <CardHeader className="pb-2">
@@ -1589,106 +2039,8 @@ export default function BazaarBandhu() {
                   </CardContent>
                 </Card>
 
-                {/* Inventory Status Card (Odoo-style) */}
-                <Card className="gradient-card marketplace-shadow overflow-hidden">
-                  <CardHeader className="pb-2 bg-white/40">
-                    <div className="flex justify-between items-center">
-                      <CardTitle className="flex items-center space-x-2 text-sm">
-                        <Package className="h-4 w-4 text-blue-600" />
-                        <span>Inventory Management</span>
-                      </CardTitle>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100"
-                          onClick={() => setShowInventoryModal(true)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                        <Badge variant="outline" className="text-[10px] font-bold">{vendorData?.currentInventory?.length || 0} Items</Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="divide-y text-xs">
-                      {vendorData?.currentInventory && vendorData.currentInventory.length > 0 ? (
-                        vendorData.currentInventory.slice(0, 4).map((item: any, idx: number) => {
-                          const quantity = item.quantity || 0;
-                          const threshold = item.threshold || 5;
-                          const status = quantity <= (threshold / 2) ? 'crit' : quantity <= threshold ? 'low' : 'good';
-                          const statusColor = status === 'good' ? "bg-green-500" : status === 'low' ? "bg-yellow-500" : "bg-red-500";
-                          const textColor = status === 'good' ? "text-green-600" : status === 'low' ? "text-yellow-600" : "text-red-600";
-                          const statusText = status === 'good' ? 'In Stock' : status === 'low' ? 'Low' : 'Critical';
+                {/* Quick Reports Card moved up or other content */}
 
-                          return (
-                            <div key={idx} className="flex items-center justify-between p-3 hover:bg-white/40 transition-colors">
-                              <div className="flex items-center space-x-3">
-                                <div className={cn("w-1.5 h-8 rounded-full", statusColor)} />
-                                <div>
-                                  <p className="font-bold text-gray-900">{item.productName}</p>
-                                  <p className="text-[10px] text-gray-500">{item.category} • ₹{item.costPrice?.toLocaleString() || '0'}</p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-bold">{quantity}{item.unit}</p>
-                                <p className={cn("text-[10px] uppercase font-bold", textColor)}>{statusText}</p>
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="p-8 text-center text-gray-400">
-                          <Package className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                          <p className="text-xs">No inventory items found</p>
-                          <div className="flex flex-col items-center space-y-2 mt-3">
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="text-xs text-blue-600 h-auto p-0"
-                              onClick={() => window.location.href = '/inventory'}
-                            >
-                              Add your first item
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-[10px] font-bold border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg px-3 py-1"
-                              onClick={async () => {
-                                const defaults = [
-                                  { productName: 'आलू (Potatoes)', category: 'Vegetables', quantity: 20, unit: 'kg', costPrice: 25 },
-                                  { productName: 'पूरी (Puris)', category: 'Grains', quantity: 1000, unit: 'pcs', costPrice: 0.5 },
-                                  { productName: 'चना (Chickpeas)', category: 'Grains', quantity: 10, unit: 'kg', costPrice: 80 },
-                                  { productName: 'इमली (Tamarind)', category: 'Spices', quantity: 5, unit: 'kg', costPrice: 120 },
-                                  { productName: 'पुदीना (Mint)', category: 'Vegetables', quantity: 2, unit: 'kg', costPrice: 40 },
-                                  { productName: 'मिर्च (Green Chilies)', category: 'Vegetables', quantity: 1, unit: 'kg', costPrice: 60 },
-                                  { productName: 'तेल (Oil)', category: 'Oil', quantity: 15, unit: 'Litre', costPrice: 140 },
-                                  { productName: 'मसाला (Chaat Masala)', category: 'Spices', quantity: 2, unit: 'kg', costPrice: 250 }
-                                ];
-                                try {
-                                  await api.patch("/vendors/inventory", { currentInventory: defaults });
-                                  setVendorData((prev: any) => ({ ...prev, currentInventory: defaults }));
-                                  toast.success("Panipuri template loaded!");
-                                } catch (error) {
-                                  toast.error("Failed to load template");
-                                }
-                              }}
-                            >
-                              <Zap className="h-3 w-3 mr-1 text-orange-500" /> Load Panipuri Template
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3 bg-gray-50/50">
-                      <Link to="/inventory">
-                        <Button variant="ghost" size="sm" className="w-full text-xs text-blue-600 font-bold hover:bg-blue-50">
-                          View All Operations →
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
 
                 {/* Quick Reports Card */}
                 <Card className="gradient-card marketplace-shadow">
@@ -1749,7 +2101,7 @@ export default function BazaarBandhu() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-semibold text-lg">BazaarBandhu AI</p>
+                          <p className="font-semibold text-lg">Saarthi Assistant</p>
                           <div className="flex items-center space-x-1">
                             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                             <span className="text-sm text-gray-600">
@@ -1929,6 +2281,19 @@ export default function BazaarBandhu() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {/* Items List */}
+                    <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100 flex items-center space-x-3">
+                      <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-100">
+                         <Package className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Order Content</p>
+                        <p className="text-xs font-bold text-slate-900 truncate">
+                          {delivery.items?.join(', ') || 'Processing items...'}
+                        </p>
+                      </div>
+                    </div>
+
                     {/* Visual Progress Bar */}
                     <div className="relative pt-4 pb-2">
                       <div className="flex justify-between text-[10px] text-gray-500 mb-2 font-bold px-1">
@@ -2066,81 +2431,129 @@ export default function BazaarBandhu() {
 
             {/* Supplier Listings */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {suppliers
-                .filter(s =>
-                  (bazaarSelectedCategory === 'all' || (s.productCategories && s.productCategories.some((cat: string) => cat.toLowerCase() === bazaarSelectedCategory.toLowerCase()))) &&
-                  ((s.businessName || s.fullName)?.toLowerCase().includes(bazaarSearchQuery.toLowerCase()))
-                )
-                .map((supplier) => (
-                  <Card key={supplier._id} className="gradient-card marketplace-shadow overflow-hidden group">
+              {(() => {
+                const filtered = suppliers.filter(s => {
+                  const query = bazaarSearchQuery?.toLowerCase() || '';
+                  const cat = bazaarSelectedCategory?.toLowerCase() || 'all';
+                  
+                  const matchesSearch = !query || 
+                    (s.businessName || s.fullName || '').toLowerCase().includes(query);
+                    
+                  const matchesCategory = cat === 'all' || 
+                    (Array.isArray(s.productCategories) && s.productCategories.some((c: any) => 
+                      String(c).toLowerCase() === cat
+                    ));
+                    
+                  return matchesSearch && matchesCategory;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="col-span-full py-20 flex flex-col items-center justify-center bg-white/40 rounded-3xl border-2 border-dashed border-gray-200">
+                      <div className="bg-gray-100 p-4 rounded-full mb-4">
+                        <Users className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <h4 className="text-lg font-bold text-gray-900">No Suppliers Found</h4>
+                      <p className="text-sm text-gray-500 mt-1 max-w-xs text-center">
+                        We couldn't find any suppliers matching your current filters. Try searching for something else or changing the category.
+                      </p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="mt-4 text-green-600 font-bold"
+                        onClick={() => {
+                          setBazaarSearchQuery("");
+                          setBazaarSelectedCategory("all");
+                        }}
+                      >
+                        Reset All Filters
+                      </Button>
+                    </div>
+                  );
+                }
+
+                return filtered.map((supplier) => (
+                  <Card key={supplier._id} className="gradient-card marketplace-shadow overflow-hidden group hover:scale-[1.02] transition-all duration-300">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-3">
-                          <Avatar className="h-12 w-12 border-2 border-green-200">
+                          <Avatar className="h-12 w-12 border-2 border-green-200 ring-4 ring-green-50 shadow-sm">
                             <AvatarFallback className="bg-gradient-to-br from-green-500 to-emerald-600 text-white font-bold text-lg">
-                              {(supplier.businessName || supplier.fullName)?.charAt(0)}
+                              {(supplier.businessName || supplier.fullName || '?')?.charAt(0)}
                             </AvatarFallback>
                           </Avatar>
                           <div>
                             <div className="flex items-center space-x-2">
                               <h3 className="font-bold text-lg text-gray-900">{supplier.businessName || supplier.fullName}</h3>
-                              <Shield className="h-4 w-4 text-green-600 fill-green-100" />
+                              <Shield className="h-3.5 w-3.5 text-green-600 fill-green-100" />
                             </div>
-                            <p className="text-xs text-gray-600">{supplier.fullName}</p>
+                            <p className="text-[10px] text-gray-500 font-medium">{supplier.fullName}</p>
                             <div className="flex items-center space-x-2 mt-1">
-                              <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                              <span className="text-xs font-bold">{supplier.rating?.average || '0.0'}</span>
-                              <span className="text-[10px] text-gray-500">({supplier.rating?.count || 0})</span>
+                              <div className="flex items-center bg-yellow-50 px-1.5 py-0.5 rounded-md border border-yellow-100">
+                                <Star className="h-2.5 w-2.5 text-yellow-500 fill-current mr-1" />
+                                <span className="text-[10px] font-black text-yellow-700">{supplier.rating?.average || '4.5'}</span>
+                              </div>
+                              <span className="text-[9px] text-gray-400 font-bold">({supplier.rating?.count || 12}+)</span>
                             </div>
                           </div>
                         </div>
-                        <Badge className="bg-green-100 text-green-800 text-[10px]">
+                        <Badge className="bg-green-100 text-green-800 text-[9px] font-bold px-2 py-0.5 rounded-full border border-green-200">
                           {supplier.distance || "2.4 km"}
                         </Badge>
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex flex-wrap gap-1">
-                        {supplier.productCategories?.map((item: any, idx: number) => (
-                          <Badge key={idx} variant="outline" className="text-[10px] bg-white/50">
+                    <CardContent className="space-y-4 pt-1">
+                      <div className="flex flex-wrap gap-1.5">
+                        {Array.isArray(supplier.productCategories) && supplier.productCategories.slice(0, 3).map((item: any, idx: number) => (
+                          <Badge key={idx} variant="outline" className="text-[9px] bg-slate-50/50 text-slate-600 font-bold border-slate-200 uppercase tracking-tight">
                             {item}
                           </Badge>
-                        )) || <Badge variant="outline" className="text-[10px] bg-white/50">Vegetables</Badge>}
+                        ))}
+                        {Array.isArray(supplier.productCategories) && supplier.productCategories.length > 3 && (
+                          <Badge variant="outline" className="text-[9px] bg-slate-50 border-slate-200 text-slate-400">
+                            +{supplier.productCategories.length - 3} more
+                          </Badge>
+                        )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-[10px] text-gray-600 bg-white/40 p-2 rounded-lg">
-                        <div className="flex items-center">
-                          <Timer className="h-3 w-3 mr-1 text-blue-500" />
-                          2-3 hours
+                      <div className="grid grid-cols-2 gap-2 text-[10px] text-gray-600 bg-white/60 p-2.5 rounded-2xl border border-white backdrop-blur-sm">
+                        <div className="flex items-center px-1">
+                          <div className="bg-blue-100 p-1 rounded-md mr-2">
+                             <Timer className="h-2.5 w-2.5 text-blue-600" />
+                          </div>
+                          <span className="font-bold">2-3 hours</span>
                         </div>
-                        <div className="flex items-center">
-                          <IndianRupee className="h-3 w-3 mr-1 text-green-500" />
-                          Min Order: ₹{supplier.minOrderAmount || 500}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-1">
-                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                          <span className="text-[10px] font-medium text-green-700">Open Now</span>
-                        </div>
-                        <div className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                          Trust Score: {supplier.trustScore || 85}%
+                        <div className="flex items-center px-1">
+                          <div className="bg-green-100 p-1 rounded-md mr-2">
+                             <IndianRupee className="h-2.5 w-2.5 text-green-600" />
+                          </div>
+                          <span className="font-bold">Min: ₹{supplier.minOrderAmount || 500}</span>
                         </div>
                       </div>
 
-                      <div className="flex space-x-2">
+                      <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center space-x-1.5">
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                          <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">Open Now</span>
+                        </div>
+                        <div className="text-[9px] font-black text-blue-600 bg-blue-50/80 px-2.5 py-1 rounded-full border border-blue-100 shadow-sm">
+                          TRUST SCORE: {supplier.trustScore || 85}%
+                        </div>
+                      </div>
+
+                      <div className="flex space-x-2 pt-1">
                         <Button
                           size="sm"
-                          className="flex-1 bg-white text-green-600 border border-green-200 hover:bg-green-50 font-bold text-[10px] p-1 px-2"
+                          variant="outline"
+                          className="flex-1 border-slate-200 hover:bg-slate-50 hover:border-slate-300 font-black text-[9px] uppercase tracking-tighter transition-all"
                           onClick={() => window.location.href = `tel:${supplier.phone}`}
                         >
-                          <Phone className="h-3 w-3 mr-1" />
-                          Call: {supplier.phone}
+                          <Phone className="h-3 w-3 mr-1.5 text-blue-600" />
+                          Call
                         </Button>
                         <Button
                           size="sm"
-                          className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:scale-105 transition-transform font-bold text-xs"
+                          className="flex-[1.5] bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 font-black text-xs shadow-lg shadow-green-200 transition-all active:scale-95"
                           onClick={() => {
                             setSelectedSupplier({
                               _id: supplier._id,
@@ -2151,14 +2564,193 @@ export default function BazaarBandhu() {
                             setShowOrderDialog(true);
                           }}
                         >
-                          <ShoppingBag className="h-3 w-3 mr-1" />
-                          Order
+                          <ShoppingBag className="h-3.5 w-3.5 mr-2" />
+                          ORDER NOW
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                ));
+              })()}
             </div>
+          </TabsContent>
+
+          <TabsContent value="inventory" className="space-y-6">
+            <div className="flex items-center justify-between px-1">
+              <div>
+                <h3 className="font-bold text-2xl text-gray-900">Stock Management</h3>
+                <p className="text-sm text-gray-500">Monitor and update your shop's inventory levels in real-time.</p>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => setShowInventoryModal(true)}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 font-bold marketplace-shadow"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Stock Item
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="gradient-card marketplace-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-blue-100 p-3 rounded-2xl">
+                      <Package className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Total SKUs</p>
+                      <h4 className="text-2xl font-black text-gray-900">{vendorData?.currentInventory?.length || 0}</h4>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="gradient-card marketplace-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-orange-100 p-3 rounded-2xl">
+                      <AlertTriangle className="h-6 w-6 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Low Stock</p>
+                      <h4 className="text-2xl font-black text-orange-600">
+                        {vendorData?.currentInventory?.filter((i: any) => (i.quantity || 0) <= (i.threshold || 5)).length || 0}
+                      </h4>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="gradient-card marketplace-shadow">
+                <CardContent className="p-6">
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-full py-4 border-dashed border-2 flex flex-col items-center justify-center gap-2 hover:bg-green-50 hover:border-green-300 transition-all group"
+                    onClick={async () => {
+                      const defaults = [
+                        { productName: 'आलू (Potatoes)', category: 'Vegetables', quantity: 20, unit: 'kg', costPrice: 25 },
+                        { productName: 'पूरी (Puris)', category: 'Grains', quantity: 1000, unit: 'pcs', costPrice: 0.5 },
+                        { productName: 'चना (Chickpeas)', category: 'Grains', quantity: 10, unit: 'kg', costPrice: 80 },
+                        { productName: 'इमली (Tamarind)', category: 'Spices', quantity: 5, unit: 'kg', costPrice: 120 },
+                        { productName: 'पुदीना (Mint)', category: 'Vegetables', quantity: 2, unit: 'kg', costPrice: 40 },
+                        { productName: 'मिर्च (Green Chilies)', category: 'Vegetables', quantity: 1, unit: 'kg', costPrice: 60 },
+                        { productName: 'तेल (Oil)', category: 'Oil', quantity: 15, unit: 'Litre', costPrice: 140 },
+                        { productName: 'मसाला (Chaat Masala)', category: 'Spices', quantity: 2, unit: 'kg', costPrice: 250 }
+                      ];
+                      try {
+                        await api.patch("/vendors/inventory", { currentInventory: defaults });
+                        const fresh = await api.get("/vendors/profile");
+                        setVendorData(fresh);
+                        toast.success("Panipuri template loaded!");
+                      } catch (error) {
+                        toast.error("Failed to load template");
+                      }
+                    }}
+                  >
+                    <Zap className="h-5 w-5 text-orange-500 group-hover:scale-125 transition-transform" />
+                    <span className="font-bold text-[10px] uppercase tracking-widest text-slate-700">Quick Template</span>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="marketplace-shadow border-none bg-white/60">
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs text-gray-500 uppercase bg-gray-50/50">
+                      <tr>
+                        <th className="px-6 py-4 font-bold">Item & Status</th>
+                        <th className="px-6 py-4 font-bold">Category</th>
+                        <th className="px-6 py-4 font-bold">In Stock</th>
+                        <th className="px-6 py-4 font-bold">PPU (₹)</th>
+                        <th className="px-6 py-4 font-bold text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {vendorData?.currentInventory && vendorData.currentInventory.length > 0 ? (
+                        vendorData.currentInventory.map((item: any, idx: number) => {
+                          const isLow = (item.quantity || 0) <= (item.threshold || 5);
+                          return (
+                            <tr key={idx} className="hover:bg-white/40 transition-colors">
+                              <td className="px-6 py-4">
+                                <div className="flex items-center space-x-3">
+                                  <div className={cn(
+                                    "w-2 h-2 rounded-full",
+                                    isLow ? "bg-red-500 animate-pulse outline outline-offset-2 outline-red-100" : "bg-green-500"
+                                  )} />
+                                  <span className="font-bold text-gray-900">{item.productName}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <Badge variant="outline" className="text-[10px] bg-slate-50 font-bold uppercase tracking-tight">{item.category}</Badge>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={cn("font-black text-base", isLow ? "text-red-600" : "text-slate-900")}>
+                                  {item.quantity}{item.unit}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className="text-xs font-bold text-gray-500">₹{item.costPrice}</span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                                    onClick={() => {
+                                      setNewInventoryItem({
+                                        productName: item.productName,
+                                        category: item.category,
+                                        quantity: item.quantity.toString(),
+                                        unit: item.unit,
+                                        costPrice: item.costPrice.toString()
+                                      });
+                                      setShowInventoryModal(true);
+                                    }}
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="h-8 w-8 text-red-600 hover:bg-red-50"
+                                    onClick={async () => {
+                                      const updated = vendorData.currentInventory.filter((_: any, i: number) => i !== idx);
+                                      try {
+                                        await api.patch("/vendors/inventory", { currentInventory: updated });
+                                        const fresh = await api.get("/vendors/profile");
+                                        setVendorData(fresh);
+                                        toast.success("Item removed");
+                                      } catch (err) {
+                                        toast.error("Failed to remove item");
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-12 text-center text-gray-400 italic">
+                            <Package className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                            <p className="text-sm font-medium">Your warehouse is currently empty.</p>
+                            <p className="text-xs mt-1">Add items or load a business template to begin.</p>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="insights" className="space-y-6">
@@ -2176,13 +2768,11 @@ export default function BazaarBandhu() {
                 </CardHeader>
                 <CardContent className="h-[250px] p-6">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={[
-                      { name: 'Jan', value: 4500 },
-                      { name: 'Feb', value: 5200 },
-                      { name: 'Mar', value: 4800 },
-                      { name: 'Apr', value: 6100 },
-                      { name: 'May', value: 5900 },
-                      { name: 'Jun', value: 6500 },
+                    <AreaChart data={analytics?.dailyData?.length > 0 ? analytics.dailyData.map((d: any) => ({
+                      name: new Date(d._id).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+                      value: d.spending
+                    })) : [
+                      { name: 'No Data', value: 0 }
                     ]}>
                       <defs>
                         <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
@@ -2209,46 +2799,50 @@ export default function BazaarBandhu() {
                       <Package className="h-4 w-4 mr-2 text-blue-600" />
                       Inventory Composition
                     </CardTitle>
-                    <Badge className="bg-blue-100 text-blue-700 border-none text-[10px]">Stock Health</Badge>
+                    <Badge className="bg-blue-100 text-blue-700 border-none text-[10px]">Category Split</Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="h-[250px] p-6 flex items-center">
-                  <ResponsiveContainer width="60%" height="100%">
+                  <ResponsiveContainer width="50%" height="100%">
                     <PieChart>
                       <Pie
-                        data={[
-                          { name: 'High', value: 45, color: '#10b981' },
-                          { name: 'Mid', value: 30, color: '#3b82f6' },
-                          { name: 'Low', value: 25, color: '#ef4444' },
-                        ]}
-                        innerRadius={60}
-                        outerRadius={80}
+                        data={(() => {
+                          const categories = vendorData?.currentInventory?.reduce((acc: any, item: any) => {
+                            acc[item.category] = (acc[item.category] || 0) + 1;
+                            return acc;
+                          }, {});
+                          return categories ? Object.entries(categories).map(([name, value]) => ({ name, value })) : [{ name: 'Empty', value: 1 }];
+                        })()}
+                        innerRadius={50}
+                        outerRadius={70}
                         paddingAngle={5}
                         dataKey="value"
                       >
-                        {[0, 1, 2].map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#ef4444'][index]} />
+                        {['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'].map((color, index) => (
+                          <Cell key={`cell-${index}`} fill={color} />
                         ))}
                       </Pie>
                       <Tooltip />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div className="flex-1 space-y-3 pl-4">
-                    <div className="flex items-center justify-between font-medium">
-                      <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-green-500 mr-2" /> <span className="text-[10px]">In Stock</span></div>
-                      <span className="text-xs">45%</span>
-                    </div>
-                    <div className="flex items-center justify-between font-medium">
-                      <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-blue-500 mr-2" /> <span className="text-[10px]">Moderate</span></div>
-                      <span className="text-xs">30%</span>
-                    </div>
-                    <div className="flex items-center justify-between font-medium">
-                      <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-red-500 mr-2" /> <span className="text-[10px]">Critical</span></div>
-                      <span className="text-xs">25%</span>
-                    </div>
-                    <div className="pt-2 border-t mt-2">
-                      <p className="text-[10px] text-gray-500 italic">Target: 95% + Health</p>
-                    </div>
+                  <div className="flex-1 space-y-2 pl-4 overflow-y-auto max-h-[180px]">
+                    {(() => {
+                      const categories = vendorData?.currentInventory?.reduce((acc: any, item: any) => {
+                        acc[item.category] = (acc[item.category] || 0) + 1;
+                        return acc;
+                      }, {});
+                      const total = vendorData?.currentInventory?.length || 1;
+                      const colors = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+                      return categories && Object.entries(categories).map(([name, value]: any, idx: number) => (
+                        <div key={name} className="flex items-center justify-between font-medium">
+                          <div className="flex items-center text-[10px]">
+                            <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: colors[idx % colors.length] }} /> 
+                            <span className="truncate max-w-[80px]">{name}</span>
+                          </div>
+                          <span className="text-[10px] text-gray-500">{Math.round((value / total) * 100)}%</span>
+                        </div>
+                      ));
+                    })()}
                   </div>
                 </CardContent>
               </Card>
@@ -2337,7 +2931,7 @@ export default function BazaarBandhu() {
                       <Bot className="h-6 w-6 text-green-600" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-900">AI Sales Prediction</h4>
+                      <h4 className="font-bold text-gray-900">Saarthi Insights</h4>
                       <p className="text-xs text-gray-600 mt-1">
                         Based on local festivals and market trends, we predict a <b>25% increase</b> in demand for <span className="text-green-700 font-bold">Onions and Spices</span> next week.
                       </p>
@@ -2361,6 +2955,7 @@ export default function BazaarBandhu() {
               <ShoppingCart className="h-5 w-5 text-green-600" />
               <span>Complete Your Purchase</span>
             </DialogTitle>
+            <DialogDescription>Review your order summary and choose a payment method to finish.</DialogDescription>
           </DialogHeader>
 
           {currentPurchase && (
@@ -2426,6 +3021,7 @@ export default function BazaarBandhu() {
               <Star className="h-5 w-5 text-yellow-600" />
               <span>Rate Your Experience</span>
             </DialogTitle>
+            <DialogDescription>Your feedback helps our suppliers improve their service.</DialogDescription>
           </DialogHeader>
 
           {currentRating && (
@@ -2593,7 +3189,7 @@ export default function BazaarBandhu() {
               <div className="mb-4">
                 <Label className="text-sm font-medium mb-2 block">Product Categories * (Select all that apply)</Label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {['Vegetables', 'Fruits', 'Spices', 'Grains', 'Dairy', 'Meat', 'Dry Goods', 'Beverages'].map(category => (
+                  {['Vegetables', 'Fruits', 'Spices', 'Grains', 'Dairy', 'Meat', 'Dry Goods', 'Beverages', 'Packaging', 'Oils', 'Flour', 'Frozen'].map(category => (
                     <Button
                       key={category}
                       type="button"
@@ -2922,6 +3518,7 @@ export default function BazaarBandhu() {
           </form>
         </DialogContent>
       </Dialog>
+
       {/* Order Details (Bill) Modal */}
       <Dialog open={showOrderDetails} onOpenChange={setShowOrderDetails}>
         <DialogContent className="max-w-md">
@@ -2933,32 +3530,52 @@ export default function BazaarBandhu() {
           </DialogHeader>
 
           {selectedOrder && (
-            <div className="space-y-4 border p-4 rounded-xl bg-white">
-              <div className="flex justify-between border-b pb-2">
+            <div className="space-y-4 border p-6 rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+              <div className="flex justify-between border-b border-slate-100 pb-3">
                 <div>
-                  <p className="text-[10px] uppercase text-gray-500 font-bold">Supplier</p>
-                  <p className="font-bold">{selectedOrder.supplier}</p>
+                  <p className="text-[10px] uppercase text-gray-400 font-black tracking-widest">Supplier</p>
+                  <p className="font-black text-slate-900">{selectedOrder.supplier}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] uppercase text-gray-500 font-bold">Date</p>
-                  <p className="font-bold">{selectedOrder.date}</p>
+                  <p className="text-[10px] uppercase text-gray-400 font-black tracking-widest">Order ID</p>
+                  <p className="font-black text-blue-600">#{selectedOrder.id?.slice(-8).toUpperCase()}</p>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase text-gray-500 font-bold">Item Details</p>
-                <div className="flex justify-between text-sm">
-                  <span>{selectedOrder.items}</span>
-                  <span className="font-medium">{selectedOrder.amount}</span>
+              {/* Order Lifecycle Flow Visualization */}
+              <div className="py-2">
+                <p className="text-[10px] uppercase text-gray-400 font-black tracking-widest mb-3 text-center">Order Lifecycle</p>
+                <div className="relative">
+                  <div className="flex justify-between text-[8px] font-black uppercase tracking-tighter mb-2">
+                    <span className="text-green-600">Confirmed</span>
+                    <span className="text-green-600">Packed</span>
+                    <span className="text-green-600">Dispatched</span>
+                    <span className="text-green-600">Delivered</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-100 rounded-full relative overflow-hidden">
+                    <div className="absolute h-full bg-gradient-to-r from-green-500 to-emerald-500 w-full" />
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-dashed">
-                <div className="flex justify-between font-bold">
-                  <span>TOTAL PAID</span>
-                  <span className="text-green-600">{selectedOrder.amount}</span>
+              <div className="space-y-3 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                <p className="text-[10px] uppercase text-gray-400 font-black tracking-widest">Item Details</p>
+                <div className="flex justify-between text-xs font-bold text-slate-700">
+                  <span className="flex-1 mr-4">{selectedOrder.items}</span>
+                  <span className="text-slate-900 whitespace-nowrap">{selectedOrder.amount}</span>
                 </div>
-                <p className="text-[8px] text-gray-400 mt-2 text-center uppercase tracking-widest">Digital Copy Generated by BazaarBandhu</p>
+              </div>
+
+              <div className="pt-4 border-t border-dashed border-slate-200">
+                <div className="flex justify-between text-base font-black">
+                  <span className="text-slate-900">PAYMENT STATUS</span>
+                  <span className="text-green-600">COMPLETED</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold mt-1">
+                  <span className="text-slate-500">Total Amount Paid</span>
+                  <span className="text-slate-900">{selectedOrder.amount}</span>
+                </div>
+                <p className="text-[8px] text-gray-300 mt-4 text-center uppercase font-black tracking-widest">Digital Tax Invoice • BazaarBandhu Blockchain Verified</p>
               </div>
             </div>
           )}
@@ -3041,29 +3658,7 @@ export default function BazaarBandhu() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowInventoryModal(false)}>Cancel</Button>
-            <Button className="bg-blue-600" onClick={async () => {
-              try {
-                if (!newInventoryItem.productName || !newInventoryItem.quantity || !newInventoryItem.costPrice || !newInventoryItem.category) {
-                  toast.error("Please fill all required fields including Category");
-                  return;
-                }
-                const payload = {
-                  product: {
-                    ...newInventoryItem,
-                    quantity: Number(newInventoryItem.quantity),
-                    costPrice: Number(newInventoryItem.costPrice)
-                  }
-                };
-                await api.patch('/vendors/inventory', payload);
-                toast.success("Inventory updated successfully!");
-                setShowInventoryModal(false);
-                const data = await api.get('/vendors/profile');
-                setVendorData(data);
-                setNewInventoryItem({ productName: '', category: '', quantity: '', unit: 'kg', costPrice: '' });
-              } catch (error: any) {
-                toast.error(`Error: ${error.message}`);
-              }
-            }}>
+            <Button className="bg-blue-600" onClick={submitInventoryUpdate}>
               Update Inventory
             </Button>
           </DialogFooter>
@@ -3109,16 +3704,7 @@ export default function BazaarBandhu() {
                         onClick={() => {
                           const qtyInput = document.getElementById(`qty-${product.id}`) as HTMLInputElement;
                           const qty = parseInt(qtyInput.value) || 1;
-                          addToCart({
-                            id: product.id,
-                            name: product.name,
-                            price: product.price,
-                            quantity: qty,
-                            unit: product.unit,
-                            supplierId: selectedSupplier.id.toString(),
-                            supplierName: selectedSupplier.name
-                          });
-                          toast.success(`Added ${qty}${product.unit} ${product.name} to cart`);
+                          addSupplierProductToCart(product, qty);
                         }}
                       >
                         Add to Cart
@@ -3130,18 +3716,7 @@ export default function BazaarBandhu() {
             ) : (
               <div className="col-span-2 text-center py-8 text-gray-500 italic">
                 No specific products listed for this supplier yet.
-                <Button variant="link" className="block mx-auto mt-2" onClick={() => {
-                  addToCart({
-                    id: 'gen-1',
-                    name: 'General Supplies',
-                    price: selectedSupplier?.minOrder || 500,
-                    quantity: 1,
-                    unit: 'lot',
-                    supplierId: selectedSupplier?.id?.toString() || '0',
-                    supplierName: selectedSupplier?.name || 'Supplier'
-                  });
-                  toast.success("Added minimum order lot to cart");
-                }}>
+                <Button variant="link" className="block mx-auto mt-2" onClick={addMinimumOrderLot}>
                   Add Minimum Order Lot
                 </Button>
               </div>
@@ -3154,17 +3729,19 @@ export default function BazaarBandhu() {
             </p>
             <div className="flex space-x-2">
               <Button variant="outline" onClick={() => setShowOrderDialog(false)}>Close</Button>
-              <Button className="bg-green-600" onClick={() => {
+              <Button className="bg-green-600 font-bold marketplace-shadow" onClick={() => {
                 setShowOrderDialog(false);
-                setActiveTab('bazaar'); // Or navigate to cart if there was a cart tab
-                toast.info("Items added! You can view them in the cart (Checkout page).");
+                proceedToCheckout();
               }}>
-                Done Picking
+                Done Picking & Pay →
               </Button>
             </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* 🎤 Bolke Business Chalao (Floating Voice Assistant) */}
+      <VoiceButton />
     </div >
   );
 }

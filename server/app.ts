@@ -14,6 +14,10 @@ import './models/Order.js';
 
 // @ts-ignore
 import apiRoutes from './routes/api.js';
+import aiChatRoutes from './routes/ai-chat.js';
+import featureRoutes from './routes/features.js';
+import inventoryRoutes from './routes/inventory.js';
+import supplierInventoryRoutes from './routes/supplier-inventory.js';
 
 const app = express();
 
@@ -78,6 +82,10 @@ app.use('/api/', limiter);
 
 // API routes
 app.use('/api', apiRoutes);
+app.use('/api/ai-chat', aiChatRoutes);
+app.use('/api/features', featureRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/supplier-inventory', supplierInventoryRoutes);
 
 // Health check endpoint
 app.get('/health', (req: any, res: any) => {

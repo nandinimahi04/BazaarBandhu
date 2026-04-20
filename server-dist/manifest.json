@@ -1,0 +1,17 @@
+{
+  "name": "BazaarBandhu: Your Business Saarthi",
+  "short_name": "BazaarBandhu",
+  "description": "Voice-first business management for local vendors.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081559.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

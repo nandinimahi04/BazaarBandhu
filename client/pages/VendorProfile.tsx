@@ -45,6 +45,7 @@ import {
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
   LineChart,
@@ -64,24 +65,30 @@ import {
 } from "recharts";
 
 export default function VendorProfile() {
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
 
+  // ── Seed with auth user data immediately so fields are NEVER blank ──
+  const getInitials = (name?: string) =>
+    name ? name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : 'VP';
+
   const [vendorData, setVendorData] = useState({
-    name: "",
-    businessName: "",
-    phone: "",
-    email: "",
-    location: "",
-    address: "",
-    joinedDate: "",
-    stallType: "",
+    name: user?.fullName || user?.name || "Vendor User",
+    businessName: user?.businessName || "My Shop",
+    phone: user?.phone || "—",
+    email: user?.email || "—",
+    location: "Loading...",
+    address: "Loading...",
+    joinedDate: "—",
+    stallType: "Street Food",
     dailyFootfall: 0,
     avgOrderValue: 0,
     businessHours: "6:00 AM - 10:00 PM",
-    avatar: "VP"
+    avatar: getInitials(user?.fullName || user?.name)
   });
+
 
   const [stats, setStats] = useState({
     trustScore: 0,
@@ -105,19 +112,32 @@ export default function VendorProfile() {
       const data = await api.get("/vendors/profile");
       setProfile(data);
 
+      const joinedDate = data.createdAt
+        ? new Date(data.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+        : '—';
+
+      // Build clean address string
+      const addrParts = [data.address?.street, data.address?.city, data.address?.state, data.address?.pincode].filter(Boolean);
+      const fullAddress = addrParts.join(', ') || '—';
+      const cityState = [data.address?.city, data.address?.state].filter(Boolean).join(', ') || '—';
+
       setVendorData({
-        name: data.fullName || "Vendor Name",
-        businessName: data.businessName || "Business Name",
-        phone: data.phone || "",
-        email: data.email || "",
-        location: `${data.address?.city || ""}, ${data.address?.state || ""}`,
-        address: `${data.address?.street || ""}, ${data.address?.city || ""}, ${data.address?.pincode || ""}`,
-        joinedDate: new Date(data.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
-        stallType: data.businessCategory || "Street Food",
-        dailyFootfall: 200,
+        name: data.fullName || user?.fullName || user?.name || "Vendor",
+        businessName: data.businessName || user?.businessName || "My Shop",
+        phone: data.phone || user?.phone || "Not provided",
+        email: data.email || user?.email || "Not provided",
+        location: cityState,
+        address: fullAddress,
+        joinedDate,
+        stallType: data.businessCategory
+          ? data.businessCategory.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+          : "Street Food",
+        dailyFootfall: data.dailyFootfall || 200,
         avgOrderValue: data.purchaseAnalytics?.averageOrderValue || 0,
-        businessHours: `${data.preferences?.preferredDeliveryTime?.from || "06:00"} - ${data.preferences?.preferredDeliveryTime?.to || "22:00"}`,
-        avatar: data.fullName?.substring(0, 2).toUpperCase() || "VP"
+        businessHours: data.preferences?.preferredDeliveryTime
+          ? `${data.preferences.preferredDeliveryTime.from} - ${data.preferences.preferredDeliveryTime.to}`
+          : "6:00 AM - 10:00 PM",
+        avatar: getInitials(data.fullName || user?.fullName)
       });
 
       setStats({
@@ -131,9 +151,19 @@ export default function VendorProfile() {
         businessGrowth: 15,
         totalSpent: data.totalSpent || 0
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching profile:", error);
-      toast.error("प्रोफ़ाइल लोड करने में विफल");
+      // Keep auth-context data visible — don't wipe it
+      setVendorData(prev => ({
+        ...prev,
+        location: prev.location === 'Loading...' ? '—' : prev.location,
+        address: prev.address === 'Loading...' ? '—' : prev.address
+      }));
+      if (error.message?.includes('Access denied')) {
+        toast.error("Access restricted to Vendors only.");
+      } else {
+        toast.error("Could not fetch full profile. Showing available details.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -141,22 +171,21 @@ export default function VendorProfile() {
 
   const updateProfile = async () => {
     try {
-      // Find the names in vendorData and map back to schema
       const updateData = {
         fullName: vendorData.name,
         businessName: vendorData.businessName,
         phone: vendorData.phone,
         email: vendorData.email
       };
-
       await api.put("/vendors/profile", updateData);
       setIsEditing(false);
-      toast.success("प्रोफ़ाइल सफलतापूर्वक अपडेट की गई");
+      toast.success("Profile updated successfully!");
       fetchProfile();
-    } catch (error) {
-      toast.error("सबमिट करने में विफल");
+    } catch (error: any) {
+      toast.error(`Failed to update: ${error.message || 'Please try again'}`);
     }
   };
+
 
   // Mock data for Odoo-like insights
   const spendData = [
@@ -256,9 +285,9 @@ export default function VendorProfile() {
                   )}
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 px-2">
                   {isEditing ? (
-                    <div className="space-y-3 px-4">
+                    <div className="space-y-3 px-2">
                       <Input
                         value={vendorData.name}
                         onChange={e => setVendorData({ ...vendorData, name: e.target.value })}
@@ -279,9 +308,25 @@ export default function VendorProfile() {
                         <Store className="h-4 w-4 mr-2" />
                         {vendorData.businessName}
                       </p>
+                      {/* Quick-glance contact info under name */}
+                      <div className="mt-3 space-y-1.5 text-left">
+                        <p className="text-xs text-slate-500 flex items-center gap-2">
+                          <Mail className="h-3 w-3 shrink-0 text-slate-400" />
+                          <span className="font-medium text-slate-700 truncate">{vendorData.email}</span>
+                        </p>
+                        <p className="text-xs text-slate-500 flex items-center gap-2">
+                          <Phone className="h-3 w-3 shrink-0 text-slate-400" />
+                          <span className="font-medium text-slate-700">{vendorData.phone}</span>
+                        </p>
+                        <p className="text-xs text-slate-500 flex items-center gap-2">
+                          <Calendar className="h-3 w-3 shrink-0 text-slate-400" />
+                          <span className="font-medium text-slate-700">Member since {vendorData.joinedDate}</span>
+                        </p>
+                      </div>
                     </>
                   )}
                 </div>
+
 
                 <div className="mt-8 grid grid-cols-2 gap-4">
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -309,47 +354,90 @@ export default function VendorProfile() {
                   Contact Details
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-6 space-y-5">
-                <div className="flex items-start space-x-4">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                    <Mail className="h-5 w-5 text-slate-500" />
+              <CardContent className="p-5 space-y-4">
+
+                {/* Full Name */}
+                <div className="flex items-start space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
+                    <UserIcon className="h-4 w-4 text-green-600" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Full Name</p>
+                    {isEditing ? (
+                      <Input value={vendorData.name} onChange={e => setVendorData({ ...vendorData, name: e.target.value })} className="mt-1 h-8 rounded-lg text-sm" placeholder="Full Name" />
+                    ) : (
+                      <p className="text-sm font-bold text-slate-800 truncate">{vendorData.name || '—'}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div className="flex items-start space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                    <Mail className="h-4 w-4 text-blue-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Email Address</p>
                     {isEditing ? (
-                      <Input value={vendorData.email} onChange={e => setVendorData({ ...vendorData, email: e.target.value })} className="mt-1 h-8 rounded-lg text-sm" />
+                      <Input value={vendorData.email} onChange={e => setVendorData({ ...vendorData, email: e.target.value })} className="mt-1 h-8 rounded-lg text-sm" placeholder="Email" />
                     ) : (
-                      <p className="text-sm font-bold text-slate-700">{vendorData.email}</p>
+                      <p className="text-sm font-bold text-slate-800 truncate">{vendorData.email || '—'}</p>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-4">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                    <Phone className="h-5 w-5 text-slate-500" />
+                {/* Phone */}
+                <div className="flex items-start space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                    <Phone className="h-4 w-4 text-emerald-600" />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Phone Number</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Mobile Number</p>
                     {isEditing ? (
-                      <Input value={vendorData.phone} onChange={e => setVendorData({ ...vendorData, phone: e.target.value })} className="mt-1 h-8 rounded-lg text-sm" />
+                      <Input value={vendorData.phone} onChange={e => setVendorData({ ...vendorData, phone: e.target.value })} className="mt-1 h-8 rounded-lg text-sm" placeholder="Phone" />
                     ) : (
-                      <p className="text-sm font-bold text-slate-700">{vendorData.phone}</p>
+                      <p className="text-sm font-bold text-slate-800">{vendorData.phone || '—'}</p>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-4">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
-                    <MapPin className="h-5 w-5 text-slate-500" />
+                {/* Address */}
+                <div className="flex items-start space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+                    <MapPin className="h-4 w-4 text-orange-500" />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Business Location</p>
-                    <p className="text-sm font-bold text-slate-700">{vendorData.location}</p>
-                    <p className="text-[11px] text-slate-500 mt-1">{vendorData.address}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Business Address</p>
+                    <p className="text-sm font-bold text-slate-800">{vendorData.location || '—'}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{vendorData.address || '—'}</p>
                   </div>
                 </div>
+
+                {/* Business Type */}
+                <div className="flex items-start space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+                    <Store className="h-4 w-4 text-purple-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Business Category</p>
+                    <p className="text-sm font-bold text-slate-800 capitalize">{vendorData.stallType || 'Street Food'}</p>
+                  </div>
+                </div>
+
+                {/* Member Since */}
+                <div className="flex items-start space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-yellow-50 flex items-center justify-center shrink-0">
+                    <Calendar className="h-4 w-4 text-yellow-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Member Since</p>
+                    <p className="text-sm font-bold text-slate-800">{vendorData.joinedDate || '—'}</p>
+                  </div>
+                </div>
+
               </CardContent>
             </Card>
+
           </div>
 
           {/* Right Main Content - Odoo-like Insights */}

@@ -236,7 +236,7 @@ export default function Suppliers() {
           <div className="lg:col-span-3 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {sortedSuppliers.map((supplier) => (
-                <Card key={supplier.id} className="border-none shadow-xl shadow-slate-200/30 rounded-[2.5rem] overflow-hidden bg-white hover:shadow-2xl hover:shadow-orange-200/40 transition-all duration-300 transform hover:-translate-y-1">
+                <Card key={supplier._id || supplier.id} className="border-none shadow-xl shadow-slate-200/30 rounded-[2.5rem] overflow-hidden bg-white hover:shadow-2xl hover:shadow-orange-200/40 transition-all duration-300 transform hover:-translate-y-1">
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-6">
                       <div className="flex items-center space-x-4">
@@ -269,7 +269,7 @@ export default function Suppliers() {
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rating</p>
                         <div className="flex items-center justify-center text-amber-500 mt-1">
                           <Star className="h-3 w-3 fill-current mr-1" />
-                          <span className="text-sm font-black text-slate-900">{supplier.rating || 4.8}</span>
+                          <span className="text-sm font-black text-slate-900">{(typeof supplier.rating === 'object' ? supplier.rating?.average : supplier.rating) || 4.8}</span>
                         </div>
                       </div>
                       <div className="text-center p-3 bg-slate-50 rounded-2xl">
@@ -373,8 +373,8 @@ export default function Suppliers() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {suppliers.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 3).map((supplier, index) => (
-                    <div key={supplier._id || supplier.id} className="flex items-center space-x-4 p-3 hover:bg-slate-50 rounded-2xl transition-colors cursor-pointer" onClick={() => openSupplierModal(supplier)}>
+                  {suppliers.sort((a, b) => ((b.rating?.average ?? b.rating) || 0) - ((a.rating?.average ?? a.rating) || 0)).slice(0, 3).map((supplier, index) => (
+                    <div key={supplier._id || supplier.id || `leader-${index}`} className="flex items-center space-x-4 p-3 hover:bg-slate-50 rounded-2xl transition-colors cursor-pointer" onClick={() => openSupplierModal(supplier)}>
                       <div className={cn(
                         "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black",
                         index === 0 ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-500"
@@ -385,7 +385,7 @@ export default function Suppliers() {
                         <p className="font-bold text-sm text-slate-900">{(supplier.businessName || supplier.name || "").split(' ')[0]}</p>
                         <div className="flex items-center space-x-1 opacity-60">
                           <Star className="h-2 w-2 fill-current" />
-                          <span className="text-[10px] font-black">{supplier.rating || 4.5}</span>
+                          <span className="text-[10px] font-black">{(typeof supplier.rating === 'object' ? supplier.rating?.average : supplier.rating) || 4.5}</span>
                         </div>
                       </div>
                       <div className="h-8 w-8 rounded-full bg-slate-50 flex items-center justify-center">

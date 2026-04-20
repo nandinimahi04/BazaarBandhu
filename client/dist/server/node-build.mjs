@@ -688,6 +688,8 @@ userSchema.index({ userType: 1 });
 userSchema.index({ "location": "2dsphere" });
 userSchema.index({ businessName: "text", fullName: "text" });
 const User = mongoose.models.User || mongoose.model("User", userSchema);
+
+
 const vendorSchema = new mongoose.Schema({
   // Business Type & Category
   businessCategory: {

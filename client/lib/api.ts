@@ -16,6 +16,21 @@ export const api = {
             headers
         });
 
+        if (response.status === 401 || response.status === 403) {
+            const errorData = await response.json();
+            const message = errorData.error || errorData.details || 'Session expired';
+            
+            // Auto-logout: Clear stale session data
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            
+            // Only redirect if we are not already on the login or register page to avoid loops
+            if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register') && !window.location.pathname.includes('/landing')) {
+                window.location.href = '/login?expired=true';
+            }
+            throw new Error(message);
+        }
+
         if (response.status >= 400) {
             const errorData = await response.json();
             const errorMessage = errorData.error || 'Request failed';

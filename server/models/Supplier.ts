@@ -7,7 +7,7 @@ const supplierSchema = new mongoose.Schema({
     // Business Details
     productCategories: [{
         type: String,
-        enum: ['Vegetables', 'Fruits', 'Spices', 'Grains', 'Dairy', 'Meat', 'Dry Goods', 'Beverages'],
+        enum: ['Vegetables', 'Fruits', 'Spices', 'Grains', 'Dairy', 'Meat', 'Dry Goods', 'Beverages', 'Packaging', 'Oils', 'Flour', 'Frozen'],
         required: true
     }],
 
@@ -123,12 +123,14 @@ const supplierSchema = new mongoose.Schema({
 });
 
 // Indexes for suppliers
-supplierSchema.index({ productCategories: 1 });
+// Note: productCategories index already exists in DB with a partialFilterExpression
+// Redefining it without the filter causes an IndexKeySpecsConflict — so we skip it here.
 supplierSchema.index({ deliveryRadius: 1 });
 supplierSchema.index({ 'products.category': 1 });
 supplierSchema.index({ 'products.pricePerUnit': 1 });
 supplierSchema.index({ 'serviceAreas.pincode': 1 });
 supplierSchema.index({ 'verificationStatus.documents': 1 });
+
 
 // Virtual for delivery success rate
 supplierSchema.virtual('deliverySuccessRate').get(function (this: any) {
@@ -162,6 +164,6 @@ supplierSchema.methods.updateStock = function (productName: string, quantity: nu
     throw new Error('Product not found');
 };
 
-const Supplier = mongoose.models.Supplier || User.discriminator('supplier', supplierSchema);
+const Supplier = mongoose.models.Supplier || User.discriminator('Supplier', supplierSchema, 'supplier');
 
 export default Supplier;

@@ -63,7 +63,7 @@ const userSchema = new mongoose.Schema({
     appLanguage: {
         type: String,
         enum: ['hi', 'en', 'mr', 'gu', 'ta', 'te', 'kn', 'bn'],
-        default: 'hi'
+        default: 'en'
     },
 
     // Ratings and Reviews
@@ -101,6 +101,10 @@ userSchema.index({ userType: 1 });
 userSchema.index({ 'location': '2dsphere' });
 userSchema.index({ businessName: 'text', fullName: 'text' });
 
-const User = mongoose.models.User || mongoose.model('User', userSchema);
+export default mongoose.models.User || mongoose.model('User', userSchema);
 
-export default User;
+// Register discriminators
+// @ts-ignore
+import('./Vendor.js');
+// @ts-ignore
+import('./Supplier.js');

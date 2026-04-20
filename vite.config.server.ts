@@ -14,7 +14,7 @@ export default defineConfig({
       formats: ["es"],
     },
     outDir: "server-dist",
-    target: "node22",
+    target: "node20",
     rollupOptions: {
       external: (id) => {
         // Externalize all modules that are not relative or absolute internal paths

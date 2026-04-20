@@ -312,7 +312,7 @@ export default function Dashboard() {
           </Button>
         </Link>
 
-        <Link to="/suppliers">
+        <Link to="/dashboard?tab=bazaar">
           <Button className="w-full h-24 clay-button flex flex-col items-center justify-center space-y-2">
             <Store className="w-8 h-8" />
             <span className="text-sm font-medium">
@@ -355,21 +355,52 @@ export default function Dashboard() {
             {recentOrders.length > 0 ? (
               <div className="space-y-4">
                 {recentOrders.map((order) => (
-                  <div key={order._id} className="flex items-center justify-between p-4 bg-white/50 rounded-xl">
-                    <div className="flex-1">
-                      <p className="font-medium">Order #{order._id.slice(-6)}</p>
-                      <p className="text-sm text-gray-600">
-                        {format(new Date(order.placedAt || order.createdAt), 'MMM dd, yyyy')}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-lg">₹{order.totalAmount}</p>
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                        order.status === 'dispatched' ? 'bg-blue-100 text-blue-800' :
+                  <div key={order._id} className="p-5 bg-white/50 rounded-2xl border border-slate-100/50 shadow-sm hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                          <Package className="w-5 h-5 text-orange-600" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800 leading-none">Order #{order._id.slice(-6)}</p>
+                          <p className="text-[10px] text-gray-500 mt-1">
+                            {format(new Date(order.placedAt || order.createdAt), 'MMM dd, hh:mm a')}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-slate-900">₹{order.totalAmount}</p>
+                        <Badge className={`${
+                          order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                          order.status === 'dispatched' ? 'bg-blue-100 text-blue-800' :
+                          order.status === 'packed' ? 'bg-indigo-100 text-indigo-800' :
                           'bg-yellow-100 text-yellow-800'
-                        }`}>
-                        {order.status}
-                      </span>
+                        } border-none text-[10px] uppercase font-bold`}>
+                          {order.status}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Visual Progress Bar */}
+                    <div className="space-y-2">
+                       <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase px-1">
+                          <span className={order.status === 'pending' ? 'text-orange-500' : order.status !== 'cancelled' ? 'text-green-500' : ''}>Ordered</span>
+                          <span className={['packed', 'dispatched', 'delivered'].includes(order.status) ? 'text-green-500' : ''}>Packed</span>
+                          <span className={['dispatched', 'delivered'].includes(order.status) ? 'text-green-500' : ''}>Dispatched</span>
+                          <span className={order.status === 'delivered' ? 'text-green-500' : ''}>Arriving</span>
+                       </div>
+                       <div className="h-1.5 w-full bg-slate-100 rounded-full relative overflow-hidden">
+                          <div 
+                            className="absolute h-full bg-gradient-to-r from-orange-500 to-green-500 transition-all duration-1000"
+                            style={{ 
+                              width: order.status === 'pending' ? '15%' : 
+                                     order.status === 'confirmed' ? '30%' :
+                                     order.status === 'packed' ? '50%' :
+                                     order.status === 'dispatched' ? '75%' :
+                                     order.status === 'delivered' ? '100%' : '0%'
+                            }}
+                          />
+                       </div>
                     </div>
                   </div>
                 ))}
@@ -410,7 +441,7 @@ export default function Dashboard() {
                       <Button size="icon" variant="outline" className="h-8 w-8 rounded-full" onClick={() => updateStock(item.productName, 5)}>
                         <Plus className="w-4 h-4 text-orange-600" />
                       </Button>
-                      <Link to="/suppliers">
+                      <Link to="/dashboard?tab=bazaar">
                         <Button size="sm" className="clay-button h-8">
                           {isEnglish ? 'Order' : 'Order'}
                         </Button>

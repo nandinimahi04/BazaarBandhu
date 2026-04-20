@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { fetchAIResponse } from "@/lib/fetchAIResponse";
+import { api } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,14 +27,46 @@ const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: 'नमस्ते! मैं आपका Bazaar Bandhu AI असिस्टेंट हूं। मैं आपकी कैसे मदद कर सकता हूं?',
+      text: 'नमस्ते! मैं आपका Saarthi Assistant हूं। मैं आपकी कैसे मदद कर सकता हूं?',
       sender: 'ai',
       timestamp: new Date()
     }
   ]);
+  const { user } = useAuth();
   const [selectedLanguage, setSelectedLanguage] = useState("hi");
   const [isLoading, setIsLoading] = useState(false);
+  const [context, setContext] = useState<any>({ products: [], inventory: [], user: null });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const loadContext = async () => {
+      try {
+        const suppliers = await api.get("/suppliers");
+        const allProducts: any[] = [];
+        suppliers.forEach((s: any) => {
+          if (s.products) {
+            s.products.forEach((p: any) => {
+              allProducts.push({ ...p, supplier: s.businessName || s.fullName, price: p.pricePerUnit });
+            });
+          }
+        });
+
+        let inventoryData = [];
+        try {
+          inventoryData = await api.get("/inventory");
+        } catch { /* ignore if vendor inventory fails */ }
+
+        setContext({
+          products: allProducts,
+          inventory: inventoryData,
+          user: user
+        });
+      } catch (error) {
+        console.error("Error loading chat context:", error);
+      }
+    };
+    loadContext();
+  }, [user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -53,7 +87,7 @@ const Chat: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const reply = await fetchAIResponse(input, selectedLanguage);
+      const reply = await fetchAIResponse(input, selectedLanguage, context);
       
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -90,7 +124,7 @@ const Chat: React.FC = () => {
               </div>
               <div>
                 <CardTitle className="text-xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-                  Bazaar Bandhu AI
+                  Saarthi Assistant
                 </CardTitle>
                 <p className="text-sm text-gray-600">आपका विश्वसनीय बाज़ार साथी</p>
               </div>

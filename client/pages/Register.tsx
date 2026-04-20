@@ -33,6 +33,12 @@ export default function Register() {
   const { login } = useAuth();
   const role = searchParams.get("role") || "vendor"; // default to vendor
 
+  const getPostRegisterRoute = (userType: string) => {
+    if (userType === "admin") return "/admin";
+    if (userType === "supplier") return "/supplier-dashboard";
+    return "/dashboard";
+  };
+
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     name: "",
@@ -103,15 +109,15 @@ export default function Register() {
   ];
 
   const languages = [
-    { label: "हिंदी", value: "hindi" },
-    { label: "मराठी", value: "marathi" },
-    { label: "अंग्रेजी", value: "english" },
-    { label: "गुजराती", value: "gujarati" }
+    { label: "English", value: "english" },
+    { label: "Hindi (हिंदी)", value: "hindi" },
+    { label: "Marathi (मराठी)", value: "marathi" },
+    { label: "Gujarati (गुजराती)", value: "gujarati" }
   ];
 
   const commonItems = [
-    "प्याज", "टमाटर", "आलू", "हरी मिर्च", "अदरक-लहसुन",
-    "तेल", "मसाले", "चावल", "दाल", "आटा"
+    "Onions", "Tomatoes", "Potatoes", "Green Chilies", "Ginger-Garlic",
+    "Oil", "Spices", "Rice", "Lentils", "Flour"
   ];
 
   const handleNext = () => {
@@ -188,7 +194,7 @@ export default function Register() {
       login(data.user, data.token);
 
       toast.success('🎉 Registration Successful! Welcome to BazaarBandhu.');
-      navigate('/dashboard');
+      navigate(getPostRegisterRoute(data.user.userType));
     } catch (error: any) {
       console.error('Registration error:', error);
       toast.error(`❌ Error: ${error.message}`);

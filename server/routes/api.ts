@@ -39,23 +39,7 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage: storage });
 
-// Middleware for authentication
-const authenticateToken = (req: any, res: any, next: any) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({ error: 'Access token required' });
-    }
-
-    jwt.verify(token, process.env.JWT_SECRET || 'bazaarbandhu_secret', (err: any, user: any) => {
-        if (err) {
-            return res.status(403).json({ error: 'Invalid token' });
-        }
-        req.user = user;
-        next();
-    });
-};
+import { authenticateToken } from '../middleware/auth.js';
 
 // ===============================
 // AUTHENTICATION ROUTES
@@ -85,7 +69,7 @@ router.post('/auth/register', async (req: any, res: any) => {
         const {
             fullName, email, password, phone, userType,
             businessName, address, stallName, stallType,
-            location, addressDetails, businessCategory,
+            location, addressDetails, businessCategory, appLanguage,
             gstNumber, deliveryRadius, minOrderAmount,
             productCategories, paymentMethods,
             workingHoursFrom, workingHoursTo
@@ -127,14 +111,14 @@ router.post('/auth/register', async (req: any, res: any) => {
                 (stallType === 'Street Food' || stallType === 'street_food' || stallType === 'पानी पूरी स्टॉल');
 
             const defaultInventory = isPaniPuri ? [
-                { productName: 'आलू (Potatoes)', category: 'Vegetables', quantity: 20, unit: 'kg', costPrice: 25 },
-                { productName: 'पूरी (Puris)', category: 'Grains', quantity: 1000, unit: 'pcs', costPrice: 0.5 },
-                { productName: 'चना (Chickpeas)', category: 'Grains', quantity: 10, unit: 'kg', costPrice: 80 },
-                { productName: 'इमली (Tamarind)', category: 'Spices', quantity: 5, unit: 'kg', costPrice: 120 },
-                { productName: 'पुदीना (Mint)', category: 'Vegetables', quantity: 2, unit: 'kg', costPrice: 40 },
-                { productName: 'मिर्च (Green Chilies)', category: 'Vegetables', quantity: 1, unit: 'kg', costPrice: 60 },
-                { productName: 'तेल (Oil)', category: 'Oil', quantity: 15, unit: 'Litre', costPrice: 140 },
-                { productName: 'मसाला (Chaat Masala)', category: 'Spices', quantity: 2, unit: 'kg', costPrice: 250 }
+                { productName: 'Potatoes', category: 'Vegetables', quantity: 20, unit: 'kg', costPrice: 25 },
+                { productName: 'Puris', category: 'Grains', quantity: 1000, unit: 'pcs', costPrice: 0.5 },
+                { productName: 'Chickpeas', category: 'Grains', quantity: 10, unit: 'kg', costPrice: 80 },
+                { productName: 'Tamarind', category: 'Spices', quantity: 5, unit: 'kg', costPrice: 120 },
+                { productName: 'Mint', category: 'Vegetables', quantity: 2, unit: 'kg', costPrice: 40 },
+                { productName: 'Green Chilies', category: 'Vegetables', quantity: 1, unit: 'kg', costPrice: 60 },
+                { productName: 'Oil', category: 'Oil', quantity: 15, unit: 'Litre', costPrice: 140 },
+                { productName: 'Chaat Masala', category: 'Spices', quantity: 2, unit: 'kg', costPrice: 250 }
             ] : [];
 
             newUser = new Vendor({
@@ -144,6 +128,7 @@ router.post('/auth/register', async (req: any, res: any) => {
                 phone,
                 userType,
                 businessName: businessName || stallName || 'My Vendor Shop',
+                appLanguage,
                 address: finalAddress,
                 location: finalLocation,
                 businessCategory: businessCategory || stallType || 'street_food',
@@ -157,6 +142,7 @@ router.post('/auth/register', async (req: any, res: any) => {
                 phone,
                 userType,
                 businessName: businessName || stallName || 'My Supplier Shop',
+                appLanguage,
                 address: finalAddress,
                 location: finalLocation,
                 gstNumber,
@@ -176,7 +162,8 @@ router.post('/auth/register', async (req: any, res: any) => {
                 password: hashedPassword,
                 phone,
                 userType,
-                businessName: businessName || 'My Bazaar App'
+                businessName: businessName || 'My Bazaar App',
+                appLanguage
             });
         }
 
@@ -382,6 +369,69 @@ router.get('/suppliers', async (req: any, res: any) => {
     }
 });
 
+
+
+// Get supplier profile
+router.get('/suppliers/profile', authenticateToken, async (req: any, res: any) => {
+    try {
+        if (req.user.userType !== 'supplier') {
+            return res.status(403).json({
+                error: 'Access denied. Suppliers only.'
+            });
+        }
+
+        const supplier = await Supplier.findById(req.user.userId)
+            .select('-password');
+
+        if (!supplier) {
+            return res.status(404).json({ error: 'Supplier not found' });
+        }
+
+        console.log(`[PROFILE] Returning profile for supplier: ${supplier.businessName} (ID: ${supplier._id})`);
+        res.json(supplier);
+
+    } catch (error: any) {
+        console.error('Get supplier profile error:', error);
+        res.status(500).json({
+            error: 'Failed to fetch profile',
+            details: error.message
+        });
+    }
+});
+
+// Get supplier analytics
+router.get('/suppliers/analytics', authenticateToken, async (req: any, res: any) => {
+    try {
+        if (req.user.userType !== 'supplier') {
+            return res.status(403).json({
+                error: 'Access denied. Suppliers only.'
+            });
+        }
+
+        const { period = 'month' } = req.query;
+        const analytics = await Order.getSupplierAnalytics(req.user.userId, period);
+
+        res.json({
+            period,
+            analytics: analytics[0] || {
+                totalOrders: 0,
+                totalSales: 0,
+                totalItemsSold: 0,
+                averageOrderValue: 0,
+                pendingOrders: 0,
+                deliveredOrders: 0
+            }
+        });
+
+    } catch (error: any) {
+        console.error('Get supplier analytics error:', error);
+        res.status(500).json({
+            error: 'Failed to fetch analytics',
+            details: error.message
+        });
+    }
+});
+
 // Get supplier by ID
 router.get('/suppliers/:id', async (req: any, res: any) => {
     try {
@@ -454,6 +504,7 @@ router.get('/suppliers/profile', authenticateToken, async (req: any, res: any) =
             return res.status(404).json({ error: 'Supplier not found' });
         }
 
+        console.log(`[PROFILE] Returning profile for supplier: ${supplier.businessName} (ID: ${supplier._id})`);
         res.json(supplier);
 
     } catch (error: any) {
@@ -592,9 +643,14 @@ router.get('/vendors/profile', authenticateToken, async (req: any, res: any) => 
             });
         }
 
-        const vendor = await Vendor.findById(req.user.userId)
+        let vendor = await Vendor.findById(req.user.userId)
             .select('-password')
             .populate('preferredSuppliers.supplierId', 'fullName businessName rating');
+
+        // Fallback for older accounts that aren't using the Vendor discriminator
+        if (!vendor) {
+            vendor = await User.findById(req.user.userId).select('-password');
+        }
 
         if (!vendor) {
             return res.status(404).json({ error: 'Vendor not found' });
@@ -687,7 +743,11 @@ router.patch('/vendors/inventory', authenticateToken, async (req: any, res: any)
         }
 
         const { product, currentInventory } = req.body;
-        const vendor = await Vendor.findById(req.user.userId);
+        let vendor = await Vendor.findById(req.user.userId);
+
+        if (!vendor) {
+            vendor = await User.findById(req.user.userId);
+        }
 
         if (!vendor) {
             return res.status(404).json({ error: 'Vendor not found' });
@@ -698,6 +758,7 @@ router.patch('/vendors/inventory', authenticateToken, async (req: any, res: any)
             vendor.currentInventory = currentInventory;
         } else if (product) {
             // Support singular product updates (used by quick-action modals)
+            if (!vendor.currentInventory) vendor.currentInventory = [];
             const itemIndex = vendor.currentInventory.findIndex(
                 (item: any) => item.productName === product.productName
             );
@@ -720,6 +781,7 @@ router.patch('/vendors/inventory', authenticateToken, async (req: any, res: any)
             return res.status(400).json({ error: 'Either "product" or "currentInventory" must be provided' });
         }
 
+        vendor.markModified('currentInventory');
         await vendor.save();
         res.json({
             message: 'Inventory updated successfully',

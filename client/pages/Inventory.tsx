@@ -22,6 +22,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogFooter,
+    DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -198,6 +199,9 @@ export default function Inventory() {
                 <DialogContent className="sm:max-w-[425px] rounded-3xl">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-bold">{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+                        <DialogDescription>
+                            {editingProduct ? "Update your product details here." : "Fill in the information to add a new item to your catalog."}
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">

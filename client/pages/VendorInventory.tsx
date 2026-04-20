@@ -74,8 +74,12 @@ export default function VendorInventory() {
     };
 
     const handleSaveItem = async () => {
-        if (!formData.productName) {
+        if (!formData.productName.trim()) {
             toast.error("Product name is required");
+            return;
+        }
+        if (!formData.quantity || formData.quantity <= 0) {
+            toast.error("Please enter a valid stock quantity");
             return;
         }
 
@@ -83,33 +87,39 @@ export default function VendorInventory() {
             let updatedInventory;
             if (editingItem) {
                 updatedInventory = inventory.map(item =>
-                    item._id === editingItem._id ? { ...item, ...formData } : item
+                    (item._id === editingItem._id || item.productName === editingItem.productName)
+                        ? { ...item, ...formData }
+                        : item
                 );
             } else {
-                updatedInventory = [...inventory, { ...formData, purchaseDate: new Date() }];
+                updatedInventory = [...inventory, { ...formData, purchaseDate: new Date().toISOString() }];
             }
 
-            await api.patch("/vendors/inventory", { currentInventory: updatedInventory });
-            setInventory(updatedInventory);
+            const result = await api.patch("/vendors/inventory", { currentInventory: updatedInventory });
+            // Use DB-returned inventory to ensure _id fields are present
+            setInventory(result.inventory || updatedInventory);
             setIsAddDialogOpen(false);
             setEditingItem(null);
             setFormData({ productName: "", category: "Vegetables", quantity: 0, unit: "kg", costPrice: 0 });
-            toast.success(editingItem ? "Inventory updated" : "New item added");
-        } catch (error) {
-            toast.error("Failed to save");
+            toast.success(editingItem ? "Inventory item updated successfully!" : "New item added to inventory!");
+        } catch (error: any) {
+            console.error("Save inventory error:", error);
+            toast.error(`Failed to save: ${error.message || 'Please check your connection and try again'}`);
         }
     };
 
-    const handleDeleteItem = async (id: string) => {
-        if (!confirm("Are you sure you want to remove this item?")) return;
+    const handleDeleteItem = async (item: any) => {
+        if (!confirm(`Are you sure you want to remove "${item.productName}" from inventory?`)) return;
 
         try {
-            const updatedInventory = inventory.filter(item => item._id !== id);
-            await api.patch("/vendors/inventory", { currentInventory: updatedInventory });
-            setInventory(updatedInventory);
-            toast.success("Item removed");
-        } catch (error) {
-            toast.error("Failed to remove");
+            const updatedInventory = inventory.filter(i =>
+                i._id ? i._id !== item._id : i.productName !== item.productName
+            );
+            const result = await api.patch("/vendors/inventory", { currentInventory: updatedInventory });
+            setInventory(result.inventory || updatedInventory);
+            toast.success(`"${item.productName}" removed from inventory`);
+        } catch (error: any) {
+            toast.error(`Failed to remove: ${error.message || 'Please try again'}`);
         }
     };
 
@@ -210,8 +220,8 @@ export default function VendorInventory() {
 
                 {/* Inventory Table/Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {filteredInventory.map((item) => (
-                        <Card key={item._id} className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-white overflow-hidden group hover:shadow-2xl hover:shadow-orange-200/20 transition-all duration-300">
+                    {filteredInventory.map((item, idx) => (
+                        <Card key={item._id || item.productName || idx} className="border-none shadow-xl shadow-slate-100 rounded-[2.5rem] bg-white overflow-hidden group hover:shadow-2xl hover:shadow-orange-200/20 transition-all duration-300">
                             <div className="p-6">
                                 <div className="flex items-start justify-between mb-6">
                                     <div className="flex items-center space-x-4">
@@ -250,7 +260,7 @@ export default function VendorInventory() {
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 className="rounded-xl py-3 font-bold text-red-500 focus:text-red-500 cursor-pointer"
-                                                onClick={() => handleDeleteItem(item._id)}
+                                                onClick={() => handleDeleteItem(item)}
                                             >
                                                 <Trash2 className="w-4 h-4 mr-2" /> Delete
                                             </DropdownMenuItem>
@@ -279,9 +289,12 @@ export default function VendorInventory() {
 
                                 <div className="flex items-center justify-between text-xs text-slate-400 border-t border-slate-50 pt-4">
                                     <span className="flex items-center">
-                                        <History className="w-3 h-3 mr-1" /> Updated {new Date(item.purchaseDate).toLocaleDateString()}
+                                        <History className="w-3 h-3 mr-1" />
+                                        {item.purchaseDate && !isNaN(new Date(item.purchaseDate).getTime())
+                                            ? `Updated ${new Date(item.purchaseDate).toLocaleDateString()}`
+                                            : 'Just added'}
                                     </span>
-                                    <Link to="/suppliers">
+                                    <Link to="/dashboard?tab=bazaar">
                                         <Button variant="link" className="h-auto p-0 text-orange-600 font-black flex items-center">
                                             Order Refill <ArrowUpRight className="w-3 h-3 ml-1" />
                                         </Button>
@@ -318,9 +331,11 @@ export default function VendorInventory() {
                                         { productName: 'Chaat Masala', category: 'Spices', quantity: 2, unit: 'kg', costPrice: 250 }
                                     ];
                                     try {
-                                        await api.patch("/vendors/inventory", { currentInventory: defaults });
-                                        setInventory(defaults);
-                                        toast.success("Template loaded successfully!");
+                                        const result = await api.patch("/vendors/inventory", { currentInventory: defaults });
+                                        // Re-fetch to get DB-assigned _id fields
+                                        const fresh = await api.get("/vendors/profile");
+                                        setInventory(fresh.currentInventory || result.inventory || defaults);
+                                        toast.success("Panipuri template loaded!");
                                     } catch (error) {
                                         toast.error("Failed to load template");
                                     }
@@ -336,7 +351,7 @@ export default function VendorInventory() {
             {/* Smart Reorder FAB */}
             {stats.lowStock > 0 && (
                 <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40">
-                    <Link to="/suppliers">
+                    <Link to="/dashboard?tab=bazaar">
                         <Button className="h-14 px-8 rounded-full bg-slate-900 text-white shadow-2xl flex items-center space-x-3 hover:scale-105 transition-transform group">
                             <Zap className="w-5 h-5 text-orange-400 fill-orange-400" />
                             <span className="font-bold">Smart Reorder {stats.lowStock} Items Now</span>

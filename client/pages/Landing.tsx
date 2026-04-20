@@ -10,7 +10,11 @@ import {
     ArrowRight,
     TrendingUp,
     MessageCircle,
-    IndianRupee
+    IndianRupee,
+    Handshake,
+    Bot,
+    Target,
+    Activity
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -135,21 +139,21 @@ export default function Landing() {
                         <h2 className="text-4xl font-bold text-gray-900 mb-4">Powerful Features for Growth</h2>
                         <p className="text-gray-500">Tailored specifically for the Indian marketplace ecosystem</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                         {[
-                            { icon: MessageCircle, title: "AI Voice Shopping", desc: "Order supplies in your native language with our intelligent AI assistant.", color: "orange" },
-                            { icon: Users, title: "Group Buying", desc: "Join forces with nearby vendors to unlock massive wholesale discounts.", color: "blue" },
-                            { icon: IndianRupee, title: "Digital Udhaar", desc: "Build your trust score and access short-term credit for your business.", color: "green" },
-                            { icon: TrendingUp, title: "Smart Inventory", desc: "Never run out of stock with real-time alerts and demand forecasting.", color: "purple" },
-                            { icon: ShieldCheck, title: "Verified Suppliers", desc: "Buy with confidence from 100% verified and rated sellers.", color: "indigo" },
-                            { icon: Zap, title: "Instant Payments", desc: "Secure multi-method payments including UPI, Card, and Wallets.", color: "red" },
+                            { icon: Handshake, title: "🛒 Unified Commerce", desc: "Our platform connects buyers, sellers, and services into one seamless ecosystem for growth.", color: "orange" },
+                            { icon: Bot, title: "🤖 AI-Driven Merchandising", desc: "Get smart product recommendations and precise demand prediction to stay ahead of the market.", color: "blue" },
+                            { icon: Target, title: "🎯 Hyper-Personalisation", desc: "Enjoy customized suggestions tailored specifically to your business needs and ordering patterns.", color: "green" },
+                            { icon: Activity, title: "📦 Supply Chain Resilience", desc: "Advanced tools for managing orders, inventory, and vendors with maximum reliability.", color: "purple" },
+                            { icon: Zap, title: "🏬 Smart Store Operations", desc: "Full digital marketplace automation that simplifies your daily business operations.", color: "indigo" },
+                            { icon: TrendingUp, title: "🚀 Growth Analytics", desc: "Real-time insights and growth metrics to help you scale your business efficiently.", color: "red" },
                         ].map((feature, idx) => (
-                            <div key={idx} className="flex flex-col space-y-4">
-                                <div className={`w-12 h-12 rounded-xl bg-${feature.color}-100 flex items-center justify-center`}>
-                                    <feature.icon className={`w-6 h-6 text-${feature.color}-600`} />
+                            <div key={idx} className="glass-card p-8 rounded-3xl flex flex-col space-y-4 hover:border-gray-200 transition-all duration-300">
+                                <div className={`w-14 h-14 rounded-2xl bg-${feature.color}-100 flex items-center justify-center`}>
+                                    <feature.icon className={`w-7 h-7 text-${feature.color}-600`} />
                                 </div>
                                 <h4 className="text-xl font-bold text-gray-900">{feature.title}</h4>
-                                <p className="text-gray-500 leading-relaxed">{feature.desc}</p>
+                                <p className="text-gray-600 leading-relaxed">{feature.desc}</p>
                             </div>
                         ))}
                     </div>

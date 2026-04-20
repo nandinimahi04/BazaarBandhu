@@ -20,8 +20,24 @@ const createIndexes = async () => {
         const db = mongoose.connection.db;
         if (!db) return;
 
-        // Drop old problematic compound index on two array fields (parallel arrays).
-        // This index causes "cannot index parallel arrays" errors during inserts/updates.
+        // Helper: create index only if no existing index covers the same key(s)
+        const safeCreateIndex = async (collection: string, keySpec: Record<string, any>, options: Record<string, any> = {}) => {
+            try {
+                const existing = await db.collection(collection).indexes();
+                const keyFields = Object.keys(keySpec);
+                const alreadyExists = existing.some((idx: any) =>
+                    idx.key && keyFields.every(k => idx.key[k] !== undefined)
+                );
+                if (!alreadyExists) {
+                    await db.collection(collection).createIndex(keySpec, options);
+                }
+            } catch (e: any) {
+                // If conflict still happens (e.g. name clash), just log and continue
+                console.warn(`⚠️  Skipped index on "${collection}" (${JSON.stringify(keySpec)}): ${e.message}`);
+            }
+        };
+
+        // Drop old problematic compound index on two array fields (parallel arrays)
         try {
             const existingIndexes = await db.collection('users').indexes();
             const badIndex = existingIndexes.find((idx: any) =>
@@ -37,41 +53,22 @@ const createIndexes = async () => {
             // Ignore if not found
         }
 
-        // Create compound indexes for better query performance
-        await db.collection('users').createIndex({
-            location: '2dsphere'
-        });
+        // users collection indexes
+        await safeCreateIndex('users', { location: '2dsphere' });
+        await safeCreateIndex('users', { userType: 1, isActive: 1, 'rating.average': -1 });
+        await safeCreateIndex('users', { productCategories: 1 });
+        await safeCreateIndex('users', { 'serviceAreas.pincode': 1 });
 
-        await db.collection('users').createIndex({
-            userType: 1,
-            isActive: 1,
-            'rating.average': -1
-        });
+        // orders collection indexes
+        await safeCreateIndex('orders', { vendor: 1, placedAt: -1 });
+        await safeCreateIndex('orders', { supplier: 1, status: 1 });
 
-        // Two separate indexes (replacing the old broken compound parallel-array index)
-        await db.collection('users').createIndex({
-            productCategories: 1
-        });
-
-        await db.collection('users').createIndex({
-            'serviceAreas.pincode': 1
-        });
-
-        await db.collection('orders').createIndex({
-            vendor: 1,
-            placedAt: -1
-        });
-
-        await db.collection('orders').createIndex({
-            supplier: 1,
-            status: 1
-        });
-
-        console.log('Database indexes created successfully');
+        console.log('✅ Database indexes checked/created successfully');
 
     } catch (error) {
         console.error('Error creating indexes:', error);
     }
 };
+
 
 export default connectDB;
