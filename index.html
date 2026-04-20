@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f97316" />
     <link rel="manifest" href="/manifest.json" />
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com;
+      connect-src 'self' https://checkout.razorpay.com https://api.razorpay.com https://*.onrender.com https://api.openai.com https://cdn-icons-png.flaticon.com;
+      img-src 'self' data: https:;
+      style-src 'self' 'unsafe-inline';
+      frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com;
+    ">
     <title>Bazaar Bandhu</title>
   </head>
 

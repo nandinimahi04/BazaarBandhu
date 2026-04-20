@@ -30,6 +30,11 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Bypass Razorpay requests to avoid CSP/Service Worker conflicts
+  if (event.request.url.includes('checkout.razorpay.com')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
