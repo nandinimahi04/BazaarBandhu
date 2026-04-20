@@ -6,8 +6,24 @@ const app = createServer();
 const port = process.env.PORT || 3000;
 
 // In production, serve the built SPA files
-const distPath = path.join(process.cwd(), "dist");
-console.log(`📂 Serving static files from: ${distPath}`);
+import fs from 'fs';
+const possibleDistPaths = [
+    path.join(process.cwd(), "dist"),
+    path.join(process.cwd(), "client/dist"),
+    path.join(import.meta.dirname, "../dist"),
+    path.join(import.meta.dirname, "../../dist")
+];
+
+let distPath = possibleDistPaths[0];
+for (const p of possibleDistPaths) {
+    if (fs.existsSync(p) && fs.existsSync(path.join(p, 'index.html'))) {
+        distPath = p;
+        console.log(`✅ Valid Dist folder found at: ${distPath}`);
+        break;
+    }
+}
+
+console.log(`🚀 Server starting. Using distPath: ${distPath}`);
 
 // Serve static files
 app.use(express.static(distPath));

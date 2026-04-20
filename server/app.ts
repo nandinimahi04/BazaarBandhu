@@ -31,7 +31,7 @@ app.use(helmet({
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
             "img-src": ["'self'", "data:", "https://res.cloudinary.com", "https://cdn-icons-png.flaticon.com", "https://images.unsplash.com", "https://*.google.com", "https://*.googleapis.com"],
             "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-            "connect-src": ["'self'", "https://*.onrender.com", "https://api.openai.com", "https://api.razorpay.com"]
+            "connect-src": ["'self'", "https://*.onrender.com", "https://api.openai.com", "https://api.razorpay.com", "https://cdn-icons-png.flaticon.com"]
         },
     },
     crossOriginResourcePolicy: false,

@@ -3,7 +3,6 @@ services:
     name: bazaarbandhu
     runtime: node
     plan: free
-    publishDir: dist
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
