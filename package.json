@@ -17,6 +17,7 @@
     "build:server": "npx vite build --config vite.config.server.ts",
     "start": "node server-dist/node-build.mjs",
     "test": "npx vitest --run",
+    "lint": "prettier --check .",
     "format.fix": "prettier --write .",
     "typecheck": "tsc"
   },

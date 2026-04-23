@@ -18,6 +18,7 @@ import { createRequire } from "module";
 import multer from "multer";
 import { v2 } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
+import fs from "fs";
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/bazaarbandhu");
@@ -1045,9 +1046,9 @@ router$6.post("/", async (req, res) => {
   }
 });
 const __filename$1 = fileURLToPath(import.meta.url);
-const __dirname$2 = path.dirname(__filename$1);
+const __dirname$1 = path.dirname(__filename$1);
 const router$5 = express.Router();
-const PYTHON_SCRIPT_PATH = path.join(__dirname$2, "..", "..", "deepseek_server.py");
+const PYTHON_SCRIPT_PATH = path.join(__dirname$1, "..", "..", "deepseek_server.py");
 router$5.post("/", async (req, res) => {
   const { message, language = "english" } = req.body;
   try {
@@ -2750,7 +2751,18 @@ router.delete("/:productId", authenticateToken$1, supplierOnly, async (req, res)
 });
 const app$1 = express();
 connectDB();
-app$1.use(helmet());
+app$1.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "img-src": ["'self'", "data:", "https://res.cloudinary.com", "https://cdn-icons-png.flaticon.com", "https://images.unsplash.com", "https://*.google.com", "https://*.googleapis.com", "https://*.razorpay.com"],
+      "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://checkout.razorpay.com"],
+      "connect-src": ["'self'", "https://*.onrender.com", "https://api.openai.com", "https://api.razorpay.com", "https://cdn-icons-png.flaticon.com", "https://checkout.razorpay.com"],
+      "frame-src": ["'self'", "https://api.razorpay.com", "https://checkout.razorpay.com"]
+    }
+  },
+  crossOriginResourcePolicy: false
+}));
 app$1.use(morgan("dev"));
 const allowedOrigins = [
   process.env.FRONTEND_URL,
@@ -2769,7 +2781,8 @@ app$1.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     const isLocalhost = origin.includes("localhost") || origin.includes("127.0.0.1");
-    if (isLocalhost || allowedOrigins.indexOf(origin) !== -1) {
+    const isRender = origin.includes("onrender.com");
+    if (isLocalhost || isRender || allowedOrigins.indexOf(origin) !== -1) {
       return callback(null, true);
     } else {
       const msg = "The CORS policy for this site does not allow access from the specified Origin.";
@@ -2815,14 +2828,45 @@ function createServer() {
 }
 const app = createServer();
 const port = process.env.PORT || 3e3;
-const __dirname$1 = import.meta.dirname;
-const distPath = path.join(__dirname$1, "../dist");
+const getDistPath = () => {
+  const cwd = process.cwd();
+  const paths = [
+    path.join(cwd, "dist"),
+    path.join(cwd, "client/dist"),
+    path.join(cwd, "new_hack/dist")
+  ];
+  for (const p of paths) {
+    if (fs.existsSync(p) && fs.existsSync(path.join(p, "index.html"))) {
+      return p;
+    }
+  }
+  return paths[0];
+};
+const distPath = getDistPath();
+console.log(`🚀 BAZAAR-BANDHU PRODUCTION SERVER`);
+console.log(`📍 Current Directory: ${process.cwd()}`);
+console.log(`📂 Using static folder: ${distPath}`);
+if (fs.existsSync(distPath)) {
+  console.log(`✅ Folder exists. Files found: ${fs.readdirSync(distPath).slice(0, 5).join(", ")}...`);
+} else {
+  console.log(`❌ ERROR: Static folder not found!`);
+}
 app.use(express.static(distPath));
 app.get("*", (req, res) => {
   if (req.path.startsWith("/api/") || req.path.startsWith("/health")) {
     return res.status(404).json({ error: "API endpoint not found" });
   }
-  res.sendFile(path.join(distPath, "index.html"));
+  if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|tsx|ts)$/)) {
+    console.log(`🚫 Asset not found or blocked: ${req.path}`);
+    return res.status(404).send("Asset not found");
+  }
+  const indexHtml = path.join(distPath, "index.html");
+  if (fs.existsSync(indexHtml)) {
+    res.sendFile(indexHtml);
+  } else {
+    console.log(`❌ CRITICAL: index.html not found at ${indexHtml}`);
+    res.status(500).send("Application Error: Build files missing");
+  }
 });
 app.listen(port, () => {
   console.log(`🚀 Fusion Starter server running on port ${port}`);

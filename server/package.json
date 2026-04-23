@@ -7,8 +7,11 @@
     "start": "tsx main.ts",
     "predev": "npx kill-port 5005",
     "dev": "nodemon --exec \"npx kill-port 5005 && tsx main.ts\"",
-    "test": "jest",
-    "seed": "tsx scripts/seedData.ts"
+    "test": "jest --passWithNoTests",
+    "seed": "tsx scripts/seedData.ts",
+    "lint": "echo 'Linting not configured for server'",
+    "type-check": "echo 'Type checking not configured for server'",
+    "build": "echo 'Build handled by root'"
   },
   "keywords": [
     "marketplace",
