@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bazaar-bandhu-v2';
+const CACHE_NAME = 'bazaar-bandhu-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -30,14 +30,14 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Bypass Razorpay requests to avoid CSP/Service Worker conflicts
-  if (event.request.url.includes('checkout.razorpay.com')) {
+  const url = new URL(event.request.url);
+
+  // ✅ Allow Razorpay script directly (Bypass SW)
+  if (url.origin === "https://checkout.razorpay.com") {
     return;
   }
 
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });

@@ -332,7 +332,7 @@ export default function BazaarBandhu() {
     navigate("/login");
   };
 
-  const loadRazorpay = () => {
+  const loadRazorpay = (src: string) => {
     return new Promise((resolve) => {
       if ((window as any).Razorpay) {
         resolve(true);
@@ -1200,7 +1200,7 @@ export default function BazaarBandhu() {
     }
 
     // Razorpay Integration for Digital Payments
-    const res = await loadRazorpay();
+    const res = await loadRazorpay("https://checkout.razorpay.com/v1/checkout.js");
 
     if (!res) {
       alert("Razorpay SDK failed to load. Are you online?");
@@ -1549,54 +1549,56 @@ export default function BazaarBandhu() {
       <header className="glass-card marketplace-shadow sticky top-0 z-50 border-b border-green-200">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 slide-in">
-              <div className="bg-gradient-to-br from-green-600 to-emerald-600 p-3 rounded-2xl marketplace-floating">
-                <Handshake className="h-8 w-8 text-white" />
+            <div className="flex items-center space-x-2 md:space-x-3 slide-in">
+              <div className="bg-gradient-to-br from-green-600 to-emerald-600 p-2 md:p-3 rounded-xl md:rounded-2xl marketplace-floating">
+                <Handshake className="h-5 w-5 md:h-8 md:w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent bazaar-glow flex items-center gap-2">
+                <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent bazaar-glow flex items-center gap-2">
                   BazaarBandhu
                   {!isOnline && (
-                    <Badge variant="outline" className="text-[8px] bg-red-50 text-red-600 border-red-200 animate-pulse">OFFLINE MODE</Badge>
+                    <Badge variant="outline" className="text-[8px] bg-red-50 text-red-600 border-red-200 animate-pulse">OFFLINE</Badge>
                   )}
                 </h1>
-                <p className="text-sm font-medium bg-gradient-to-r from-green-700 to-blue-700 bg-clip-text text-transparent italic">
+                <p className="hidden md:block text-sm font-medium bg-gradient-to-r from-green-700 to-blue-700 bg-clip-text text-transparent italic">
                   {headerStatusKey ? getTranslation('headerStatus', selectedLanguage) : '...'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-4">
-              {/* Language Selector */}
-              <Select
-                value={selectedLanguage}
-                onValueChange={async (value) => {
-                  setSelectedLanguage(value);
-                  if (user) {
-                    try {
-                      await api.put('/vendors/profile', { appLanguage: value });
-                      toast.success(value === 'hi' ? 'भाषा बदल दी गई है' : 'Language changed successfully');
-                    } catch (error) {
-                      console.error('Failed to update language:', error);
+            <div className="flex items-center space-x-2 md:space-x-4">
+              {/* Language Selector - Compact on Mobile */}
+              <div className="hidden sm:block">
+                <Select
+                  value={selectedLanguage}
+                  onValueChange={async (value) => {
+                    setSelectedLanguage(value);
+                    if (user) {
+                      try {
+                        await api.put('/vendors/profile', { appLanguage: value });
+                        toast.success(value === 'hi' ? 'भाषा बदल दी गई है' : 'Language changed successfully');
+                      } catch (error) {
+                        console.error('Failed to update language:', error);
+                      }
                     }
-                  }
-                }}
-              >
-                <SelectTrigger className="w-32 glow-border fade-in">
-                  <Languages className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {allAvailableLanguages.map(lang => (
-                    <SelectItem key={lang.code} value={lang.code}>
-                      <span className="flex items-center space-x-2">
-                        <span>{lang.flag}</span>
-                        <span>{lang.nativeName}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  }}
+                >
+                  <SelectTrigger className="w-32 glow-border fade-in">
+                    <Languages className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allAvailableLanguages.map(lang => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        <span className="flex items-center space-x-2">
+                          <span>{lang.flag}</span>
+                          <span>{lang.nativeName}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               {/* Login Button or User Profile */}
               {!user ? (
@@ -1713,7 +1715,7 @@ export default function BazaarBandhu() {
         )}
 
         {/* Enhanced Quick Stats with Animations */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Card className="gradient-card marketplace-shadow marketplace-floating cursor-pointer slide-in">
             <CardContent className="py-4">
               <div className="flex items-center space-x-3">
@@ -1803,9 +1805,9 @@ export default function BazaarBandhu() {
           </Card>
         )}
 
-        {/* Main Tabs */}
+        {/* Main Tabs - Horizontal on Desktop, Hidden on Mobile (using Bottom Nav) */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-white/60 backdrop-blur-sm marketplace-shadow">
+          <TabsList className="hidden md:grid w-full grid-cols-6 bg-white/60 backdrop-blur-sm marketplace-shadow overflow-x-auto">
             <TabsTrigger value="dashboard" className="glow-border">
               <Home className="h-4 w-4 mr-2" />
               {getTranslation('dashboard', selectedLanguage)}
@@ -1908,7 +1910,7 @@ export default function BazaarBandhu() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {products.filter(p => {
                         // Personalize Smart Purchase Hub based on business category
                         if (!vendorData?.businessCategory) return true;
@@ -3741,7 +3743,53 @@ export default function BazaarBandhu() {
       </Dialog>
       
       {/* 🎤 Bolke Business Chalao (Floating Voice Assistant) */}
-      <VoiceButton />
+      <div className="pb-20 md:pb-0">
+        <VoiceButton />
+      </div>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-green-100 px-6 py-3 flex justify-between items-center z-50">
+        <button 
+          onClick={() => setActiveTab('dashboard')}
+          className={cn("flex flex-col items-center space-y-1", activeTab === 'dashboard' ? "text-green-600" : "text-gray-400")}
+        >
+          <Home className="h-5 w-5" />
+          <span className="text-[10px] font-bold">Home</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('bazaar')}
+          className={cn("flex flex-col items-center space-y-1", activeTab === 'bazaar' ? "text-green-600" : "text-gray-400")}
+        >
+          <Store className="h-5 w-5" />
+          <span className="text-[10px] font-bold">Bazaar</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('ai-bandhu')}
+          className={cn("relative -mt-8 flex flex-col items-center")}
+        >
+          <div className={cn(
+            "w-12 h-12 rounded-full flex items-center justify-center shadow-lg transform transition-transform active:scale-95",
+            activeTab === 'ai-bandhu' ? "bg-green-600 text-white" : "bg-white text-green-600 border border-green-100"
+          )}>
+            <Bot className="h-6 w-6" />
+          </div>
+          <span className={cn("text-[10px] font-bold mt-1", activeTab === 'ai-bandhu' ? "text-green-600" : "text-gray-400")}>Saarthi</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('delivery')}
+          className={cn("flex flex-col items-center space-y-1", activeTab === 'delivery' ? "text-green-600" : "text-gray-400")}
+        >
+          <Truck className="h-5 w-5" />
+          <span className="text-[10px] font-bold">Orders</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('insights')}
+          className={cn("flex flex-col items-center space-y-1", activeTab === 'insights' ? "text-green-600" : "text-gray-400")}
+        >
+          <BarChart3 className="h-5 w-5" />
+          <span className="text-[10px] font-bold">Insights</span>
+        </button>
+      </nav>
     </div >
   );
 }

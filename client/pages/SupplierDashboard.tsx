@@ -14,6 +14,14 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { format } from "date-fns";
 import { useAuth } from "@/context/AuthContext";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
 
 const STATUS_COLORS: Record<string, string> = {
     pending: "bg-orange-100 text-orange-600",
@@ -111,6 +119,67 @@ export default function SupplierDashboard() {
 
     return (
         <div className="min-h-screen bg-slate-50">
+            {/* Mobile Header */}
+            <div className="lg:hidden sticky top-0 z-40 bg-slate-900 text-white p-4 flex items-center justify-between shadow-lg">
+                <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+                        <Truck className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-xl font-bold">SupplierHub</span>
+                </div>
+                
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+                            <Menu className="w-6 h-6" />
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="bg-slate-900 text-white border-none w-72 p-0">
+                        <div className="p-6 h-full flex flex-col">
+                            <SheetHeader className="mb-8 text-left">
+                                <SheetTitle className="text-white flex items-center space-x-3">
+                                    <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+                                        <Truck className="w-5 h-5 text-white" />
+                                    </div>
+                                    <span>SupplierHub</span>
+                                </SheetTitle>
+                            </SheetHeader>
+                            
+                            <nav className="space-y-1 flex-1">
+                                {navItems.map(item => {
+                                    const isActive = (item.id === "inventory" || item.id === "orders")
+                                        ? false
+                                        : activeTab === item.id;
+                                    const classes = `w-full flex items-center space-x-3 p-3 rounded-xl transition-colors text-left ${isActive ? 'text-orange-400 bg-white/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`;
+                                    
+                                    const Content = () => (
+                                        <><item.icon className="w-5 h-5" /><span>{item.label}</span></>
+                                    );
+
+                                    if (item.href) return (
+                                        <Link key={item.id} to={item.href} className={classes}>
+                                            <Content />
+                                        </Link>
+                                    );
+                                    return (
+                                        <button key={item.id} onClick={() => { item.action(); }} className={classes}>
+                                            <Content />
+                                        </button>
+                                    );
+                                })}
+                            </nav>
+
+                            <Button 
+                                variant="ghost" 
+                                className="w-full justify-start text-slate-400 hover:text-white hover:bg-white/5 mt-auto" 
+                                onClick={handleLogout}
+                            >
+                                <LogOut className="w-5 h-5 mr-3" /> Logout
+                            </Button>
+                        </div>
+                    </SheetContent>
+                </Sheet>
+            </div>
             {/* Sidebar */}
             <div className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white p-6 hidden lg:flex flex-col">
                 <div className="flex items-center space-x-3 mb-10">
@@ -145,15 +214,15 @@ export default function SupplierDashboard() {
             </div>
 
             {/* Main Content */}
-            <div className="lg:ml-64 p-8">
+            <div className="lg:ml-64 p-4 md:p-8">
 
                 {/* ── OVERVIEW TAB ── */}
                 {activeTab === "overview" && (
                     <>
-                        <header className="flex items-center justify-between mb-10">
+                        <header className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 md:mb-10 space-y-4 sm:space-y-0">
                             <div>
-                                <h1 className="text-3xl font-bold text-slate-900">Good Morning, {supplierData?.fullName?.split(' ')[0] || "Supplier"}! 👋</h1>
-                                <p className="text-slate-500">{supplierData?.businessName} · Performance Summary</p>
+                                <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Good Morning, {supplierData?.fullName?.split(' ')[0] || "Supplier"}! 👋</h1>
+                                <p className="text-sm md:text-base text-slate-500">{supplierData?.businessName} · Performance Summary</p>
                             </div>
                             <div className="flex items-center space-x-4">
                                 <Button variant="outline" size="icon" className="rounded-full shadow-sm"><Bell className="w-5 h-5" /></Button>

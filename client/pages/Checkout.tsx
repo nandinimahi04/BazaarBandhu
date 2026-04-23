@@ -27,14 +27,14 @@ export default function Checkout() {
     const [isProcessing, setIsProcessing] = useState(false);
     const navigate = useNavigate();
 
-    const loadRazorpay = () => {
+    const loadRazorpay = (src: string) => {
         return new Promise((resolve) => {
             if ((window as any).Razorpay) {
                 resolve(true);
                 return;
             }
             const script = document.createElement("script");
-            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.src = src;
             script.onload = () => resolve(true);
             script.onerror = () => resolve(false);
             document.body.appendChild(script);
@@ -80,7 +80,7 @@ export default function Checkout() {
             }
 
             // 2. Razorpay Payment Integration
-            const res = await loadRazorpay();
+            const res = await loadRazorpay("https://checkout.razorpay.com/v1/checkout.js");
             if (!res) {
                 toast.error("Razorpay SDK failed to load. Are you online?");
                 return;

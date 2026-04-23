@@ -14,9 +14,17 @@ import {
     Handshake,
     Bot,
     Target,
-    Activity
+    Activity,
+    Menu
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet";
 
 export default function Landing() {
     return (
@@ -72,11 +80,44 @@ export default function Landing() {
                         <a href="#how-it-works" className="hover:text-orange-600 transition-colors">How it Works</a>
                         <Link to="/login" className="hover:text-orange-600 transition-colors">Login</Link>
                     </div>
-                    <Link to="/register?role=vendor">
-                        <Button className="bg-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-200/50 rounded-full px-6">
-                            Join Now
-                        </Button>
-                    </Link>
+                    <div className="flex items-center space-x-4">
+                        <Link to="/register?role=vendor" className="hidden sm:block">
+                            <Button className="bg-orange-600 hover:bg-orange-700 shadow-lg shadow-orange-200/50 rounded-full px-6">
+                                Join Now
+                            </Button>
+                        </Link>
+                        
+                        {/* Mobile Menu */}
+                        <div className="md:hidden">
+                            <Sheet>
+                                <SheetTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-gray-600">
+                                        <Menu className="w-6 h-6" />
+                                    </Button>
+                                </SheetTrigger>
+                                <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                                    <SheetHeader>
+                                        <SheetTitle className="text-left flex items-center space-x-2">
+                                            <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+                                                <Store className="text-white w-5 h-5" />
+                                            </div>
+                                            <span className="font-bold text-xl text-orange-600">BazaarBandhu</span>
+                                        </SheetTitle>
+                                    </SheetHeader>
+                                    <div className="flex flex-col space-y-6 mt-10">
+                                        <a href="#features" className="text-lg font-medium text-gray-600 hover:text-orange-600">Features</a>
+                                        <a href="#how-it-works" className="text-lg font-medium text-gray-600 hover:text-orange-600">How it Works</a>
+                                        <Link to="/login" className="text-lg font-medium text-gray-600 hover:text-orange-600">Login</Link>
+                                        <Link to="/register?role=vendor">
+                                            <Button className="w-full bg-orange-600 hover:bg-orange-700 h-12 text-lg rounded-xl">
+                                                Get Started
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                </SheetContent>
+                            </Sheet>
+                        </div>
+                    </div>
                 </div>
             </nav>
 
@@ -86,8 +127,8 @@ export default function Landing() {
                     <Zap className="w-4 h-4 text-orange-600 fill-orange-600" />
                     <span className="text-sm font-semibold text-orange-800 tracking-wide uppercase">AI-Powered Marketplace</span>
                 </div>
-                <h1 className="text-6xl md:text-7xl font-extrabold text-gray-900 mb-8 leading-[1.1] tracking-tight">
-                    Your Trusted <span className="text-orange-600">Market Partner</span><br />
+                <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold text-gray-900 mb-8 leading-[1.1] tracking-tight">
+                    Your Trusted <span className="text-orange-600">Market Partner</span><br className="hidden md:block" />
                     <span className="text-gray-400">Supporting your business growth</span>
                 </h1>
                 <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto leading-relaxed">
