@@ -1,21 +1,28 @@
-# BazaarBandhu 🤝
-## आपका विश्वसनीय बाज़ार साथी - Your Trusted Marketplace Partner
+# BazaarBandhu - AI-Powered E-Commerce Platform
 
-### 🌟 **FULLY FUNCTIONAL AI-POWERED PLATFORM**
-**BazaarBandhu** is now a completely working AI-powered marketplace platform with real functionality for Indian street food vendors. Every button works, every feature is interactive, and the AI voice system actually processes user input and makes intelligent decisions.
+![React](https://img.shields.io/badge/React-18.0%2B-blue)
+![Node.js](https://img.shields.io/badge/Node.js-18.0%2B-green)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-blue)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.0%2B-38B2AC)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13%2B-blue)
+![Docker](https://img.shields.io/badge/Docker-20.0%2B-blue)
+![License](https://img.shields.io/badge/License-MIT-yellow)
+![Stars](https://img.shields.io/github/stars/nandinimahi04/BazaarBandhu?style=social)
+![Forks](https://img.shields.io/github/forks/nandinimahi04/BazaarBandhu?style=social)
 
----
+## Overview
 
-## 🎯 **All Functionality Now Working**
+BazaarBandhu is a comprehensive AI-powered e-commerce platform designed to connect local vendors with customers. Built with modern web technologies, it provides a seamless shopping experience with voice-enabled search, real-time inventory management, secure payment processing, and intelligent recommendation systems.
 
-### ✅ **Payment System**
-- **Real Payment Modals**: Click any "Buy" button → Payment window opens
-- **Multiple Payment Methods**: UPI, Credit/Debit Card, Digital Wallet
-- **Order Summary**: Shows quantity, price, savings, and total
-- **Payment Processing**: Simulates real payment flow with confirmations
-- **Success Notifications**: Real-time alerts when orders are placed
+## Features
 
-### ✅ **Rating & Review System** 
+### For Customers
+- **AI Voice Search**: Multi-language voice commands (Hindi, English, Marathi, Gujarati, Tamil, Telugu, Kannada, Bengali)
+- **Real-time Order Tracking**: Live order status updates with GPS tracking
+- **Secure Payment Processing**: Multiple payment methods (UPI, Cards, Digital Wallets)
+- **Smart Recommendations**: AI-powered product suggestions
+- **Rating & Review System**: 5-star rating with detailed feedback
+- **Multi-language Support**: 8 Indian languages supported
 - **Rate Delivery Button**: Click "Rate Delivery" → Rating window opens
 - **5-Star Rating System**: Interactive star selection with hover effects
 - **Review Text**: Optional feedback textarea for detailed reviews
@@ -278,15 +285,25 @@ const handleRatingSubmit = () => {
 - ✅ **Production-ready quality** with professional design
 - ✅ **Cultural intelligence** specifically for Indian vendors
 
-### Technical Excellence:
-- Real speech recognition API integration
-- Complete state management for all interactions
-- Professional modal systems and confirmations
-- Responsive design across all devices
-- Error handling and user feedback systems
+## Tech Stack
 
----
+### Frontend
+- **React 18**: Modern UI framework with hooks and concurrent features
+- **TypeScript 5.0**: Type-safe JavaScript development
+- **TailwindCSS 3.0**: Utility-first CSS framework for rapid UI development
+- **Vite**: Fast build tool and development server
+- **React Router**: Client-side routing
+- **Axios**: HTTP client for API calls
+- **Web Speech API**: Browser-native voice recognition
 
+### Backend
+- **Node.js 18**: JavaScript runtime for server-side development
+- **Express.js**: Fast, minimalist web framework
+- **TypeScript**: Type-safe backend development
+- **PostgreSQL**: Robust relational database
+- **Redis**: In-memory data store for caching and sessions
+- **JWT**: Secure authentication tokens
+- **Socket.io**: Real-time communication for live updates
 **🎉 BazaarBandhu - Fully Functional AI Platform Ready for Victory! 🏆**
 
 *Every feature works, every button clicks, every voice command processes - this is a complete, production-ready solution for Indian street food vendors.*
